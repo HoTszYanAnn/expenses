@@ -82,6 +82,37 @@ export default function App() {
     }
   }, [mainCat, categories]);
 
+  // --- 📊 即時數據分析統計邏輯 (新功能) ---
+  const getStats = () => {
+    // 1. 總金額
+    const total = records.reduce((sum, rec) => sum + parseFloat(rec.amount || 0), 0);
+
+    // 2. 成員消費分佈
+    const memberMap = {};
+    members.forEach(m => { memberMap[m.id] = 0; });
+    records.forEach(rec => {
+      if (memberMap[rec.member_id] !== undefined) {
+        memberMap[rec.member_id] += parseFloat(rec.amount || 0);
+      }
+    });
+
+    // 3. 主分類排行
+    const catMap = {};
+    records.forEach(rec => {
+      if (!catMap[rec.main_category]) catMap[rec.main_category] = 0;
+      catMap[rec.main_category] += parseFloat(rec.amount || 0);
+    });
+    
+    // 轉成陣列並排序
+    const sortedCats = Object.keys(catMap)
+      .map(name => ({ name, amount: catMap[name] }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return { total, memberMap, sortedCats };
+  };
+
+  const stats = getStats();
+
   // --- Actions ---
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -181,7 +212,6 @@ export default function App() {
               autoFocus
             />
 
-            {/* 響應式下拉選單 */}
             <div style={styles.responsiveRow}>
               <select 
                 value={selectedMember} 
@@ -212,6 +242,58 @@ export default function App() {
             </div>
           </form>
 
+          {/* 📊 數據統計區區塊 (新功能) */}
+          {records.length > 0 && (
+            <div style={styles.statsContainer}>
+              <div style={styles.totalBlock}>
+                <div style={styles.statsLabel}>總支出總計</div>
+                <div style={styles.totalText}>${stats.total.toFixed(1)}</div>
+              </div>
+              
+              <div style={styles.statsGrid}>
+                {/* 左側：成員分佈 */}
+                <div style={styles.statsCard}>
+                  <div style={styles.statsCardTitle}>成員分擔</div>
+                  <div style={styles.statsCardList}>
+                    {members.map(m => {
+                      const mAmount = stats.memberMap[m.id] || 0;
+                      const percent = stats.total > 0 ? ((mAmount / stats.total) * 100).toFixed(0) : 0;
+                      return (
+                        <div key={m.id} style={styles.statsCardItem}>
+                          <span style={{...styles.dot, backgroundColor: m.color}}></span>
+                          <span style={{color: '#fff', flex: 1}}>{m.name}</span>
+                          <span style={{color: '#666', fontSize: '12px', marginRight: '6px'}}>{percent}%</span>
+                          <span style={{color: m.color, fontWeight: 'bold'}}>${mAmount.toFixed(0)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 右側：分類排行 */}
+                <div style={styles.statsCard}>
+                  <div style={styles.statsCardTitle}>分類消耗 (TOP 3)</div>
+                  <div style={styles.statsCardList}>
+                    {stats.sortedCats.slice(0, 3).map((c, index) => {
+                      const percent = stats.total > 0 ? ((c.amount / stats.total) * 100).toFixed(0) : 0;
+                      return (
+                        <div key={c.name} style={styles.statsCardItem}>
+                          <span style={{color: '#666', marginRight: '6px'}}>{index + 1}.</span>
+                          <span style={{color: '#fff', flex: 1, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap'}}>{c.name}</span>
+                          <span style={{color: '#666', fontSize: '12px', marginRight: '6px'}}>{percent}%</span>
+                          <span style={{color: '#aaa'}}>${c.amount.toFixed(0)}</span>
+                        </div>
+                      );
+                    })}
+                    {stats.sortedCats.length === 0 && (
+                      <div style={{color: '#444', fontSize: '12px', textAlign: 'center', marginTop: '10px'}}>暫無分類數據</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <hr style={styles.divider} />
 
           {/* 紀錄列表 */}
@@ -237,7 +319,7 @@ export default function App() {
           </div>
         </>
       ) : (
-        /* 設定頁面 (完美支援 iPad / Mobile) */
+        /* 設定頁面 */
         <div style={styles.settingsContainer}>
           <div style={styles.settingsSection}>
             <h3 style={styles.sectionTitle}>成員名單</h3>
@@ -260,7 +342,6 @@ export default function App() {
 
           <div style={styles.settingsSection}>
             <h3 style={styles.sectionTitle}>自定義分類管理</h3>
-            {/* 加分類 Form 在手機版會自動直排 */}
             <form onSubmit={handleAddCategory} style={styles.responsiveFormRow}>
               <input type="text" placeholder="主分類 (如: 飲食)" value={newMainCat} onChange={(e) => setNewMainCat(e.target.value)} style={styles.inputNote} />
               <input type="text" placeholder="子分類 (如: 咖啡)" value={newSubCat} onChange={(e) => setNewSubCat(e.target.value)} style={styles.inputNote} />
@@ -296,11 +377,8 @@ const styles = {
   inputAmount: { backgroundColor: '#000', border: 'none', borderBottom: '2px solid #222', color: '#fff', fontSize: '44px', textAlign: 'center', width: '100%', outline: 'none', fontFamily: 'monospace', padding: '10px 0' },
   row: { display: 'flex', gap: '10px', width: '100%', alignItems: 'center' },
   
-  // 📱 手機版三個 Select 會並排，但在極窄螢幕防止文字溢出
   responsiveRow: { display: 'flex', gap: '8px', width: '100%', flexWrap: 'nowrap' },
   select: { backgroundColor: '#050505', border: '1px solid #222', color: '#fff', padding: '12px 8px', fontSize: '14px', flex: 1, minWidth: 0, outline: 'none', cursor: 'pointer', fontFamily: 'monospace', borderRadius: '4px' },
-  
-  // 📱 手機版加分類輸入框會自動垂直排列，iPad版橫排
   responsiveFormRow: { display: 'flex', gap: '10px', width: '100%', flexDirection: 'row', flexWrap: 'wrap' },
   
   inputNote: { backgroundColor: '#050505', border: '1px solid #222', color: '#fff', padding: '12px', fontSize: '15px', flex: 1, minWidth: '120px', outline: 'none', fontFamily: 'monospace', borderRadius: '4px', boxSizing: 'border-box' },
@@ -309,18 +387,28 @@ const styles = {
   divider: { width: '100%', border: 'none', borderTop: '1px solid #111111', margin: '24px 0' },
   list: { width: '100%', display: 'flex', flexDirection: 'column', gap: '14px' },
   
-  // 紀錄列表與設定列表的爆版防護
   listItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #111111', gap: '10px' },
   itemLeft: { display: 'flex', gap: '10px', alignItems: 'center', flex: 1, minWidth: 0, flexWrap: 'wrap' },
   itemRight: { display: 'flex', alignItems: 'center', flexShrink: 0 },
   catText: { color: '#666666', fontSize: '13px', wordBreak: 'break-all' },
   noteText: { color: '#444444', fontSize: '13px', wordBreak: 'break-all' },
   
-  // 🛠️ 設定頁面專用修正項（防止刪除鍵被推出螢幕外）
   settingsContainer: { width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' },
   settingsSection: { width: '100%', boxSizing: 'border-box' },
   sectionTitle: { color: '#fff', fontSize: '16px', marginBottom: '12px' },
   settingsItemRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #111', paddingBottom: '8px', gap: '15px', width: '100%' },
   catNameContainer: { display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, flexWrap: 'wrap', fontSize: '14px' },
-  deleteBtn: { color: '#555', cursor: 'pointer', fontSize: '20px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, userSelect: 'none' }
+  deleteBtn: { color: '#555', cursor: 'pointer', fontSize: '20px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, userSelect: 'none' },
+
+  // 📊 統計面板專屬優化樣式 (保持極簡黑魂味)
+  statsContainer: { width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '24px', boxSizing: 'border-box' },
+  totalBlock: { backgroundColor: '#050505', border: '1px solid #111', padding: '16px', borderRadius: '4px', textAlign: 'center' },
+  statsLabel: { color: '#444', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' },
+  totalText: { color: '#fff', fontSize: '32px', fontWeight: 'bold', marginTop: '4px' },
+  statsGrid: { display: 'flex', gap: '12px', width: '100%', flexWrap: 'wrap' },
+  statsCard: { backgroundColor: '#050505', border: '1px solid #111', padding: '12px', borderRadius: '4px', flex: 1, minWidth: '240px', boxSizing: 'border-box' },
+  statsCardTitle: { color: '#555', fontSize: '12px', fontWeight: 'bold', borderBottom: '1px solid #111', paddingBottom: '6px', marginBottom: '8px' },
+  statsCardList: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  statsCardItem: { display: 'flex', alignItems: 'center', fontSize: '13px', width: '100%' },
+  dot: { width: '8px', height: '8px', borderRadius: '50%', marginRight: '8px', flexShrink: 0 }
 };
