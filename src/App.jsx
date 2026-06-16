@@ -111,6 +111,40 @@ export default function App() {
 
   const stats = getStats();
 
+  // --- 📅 歷史明細分組邏輯 (新加入) ---
+  const getGroupedRecords = () => {
+    const groups = {}; // { '2026-06-16': { total: 100, items: [...] } }
+
+    records.forEach(rec => {
+      // 轉換為本地時間物件
+      const dateObj = new Date(rec.created_at);
+      
+      // 格式化日期 YYYY-MM-DD
+      const yyyy = dateObj.getFullYear();
+      const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const dd = String(dateObj.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+
+      // 格式化時間 HH:MM:SS
+      const hh = String(dateObj.getHours()).padStart(2, '0');
+      const min = String(dateObj.getMinutes()).padStart(2, '0');
+      const ss = String(dateObj.getSeconds()).padStart(2, '0');
+      const timeStr = `${hh}:${min}:${ss}`;
+
+      if (!groups[dateStr]) {
+        groups[dateStr] = { date: dateStr, total: 0, items: [] };
+      }
+
+      groups[dateStr].items.push({ ...rec, timeStr });
+      groups[dateStr].total += parseFloat(rec.amount || 0);
+    });
+
+    // 轉成陣列並按照日期從新到舊排序
+    return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
+  };
+
+  const groupedRecords = getGroupedRecords();
+
   // --- Actions ---
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -194,14 +228,14 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      {/* 📱 下方 3-Tab 固定導航欄 */}
+      {/* 下方 固定導航欄 */}
       <nav style={styles.nav}>
         <span style={view === 'main' ? styles.navActive : styles.navLink} onClick={() => setView('main')}>記帳/圖表</span>
         <span style={view === 'details' ? styles.navActive : styles.navLink} onClick={() => setView('details')}>歷史明細</span>
         <span style={view === 'settings' ? styles.navActive : styles.navLink} onClick={() => setView('settings')}>設定管理</span>
       </nav>
 
-      {/* 🟢 TAB 1: 記帳主頁面 + 圖表分析 */}
+      {/* TAB 1: 記帳主頁面 */}
       {view === 'main' && (
         <>
           <form onSubmit={handleAddExpense} style={styles.form}>
@@ -246,7 +280,7 @@ export default function App() {
             </div>
           </form>
 
-          {/* 📊 動態圖表板 */}
+          {/* 圖表板 */}
           {records.length > 0 ? (
             <div style={styles.statsContainer}>
               <div style={styles.totalBlock}>
@@ -255,7 +289,6 @@ export default function App() {
               </div>
               
               <div style={styles.statsGrid}>
-                {/* 成員比例條 */}
                 <div style={styles.statsCard}>
                   <div style={styles.statsCardTitle}>成員分擔比例</div>
                   <div style={styles.statsCardList}>
@@ -279,7 +312,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 分類消耗條 */}
                 <div style={styles.statsCard}>
                   <div style={styles.statsCardTitle}>主分類消耗排行 (TOP 3)</div>
                   <div style={styles.statsCardList}>
@@ -306,35 +338,50 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div style={{color: '#333', textAlign: 'center', marginTop: '40px'}}>暫無記帳紀錄，快啲記第一筆啦！</div>
+            <div style={{color: '#333', textAlign: 'center', marginTop: '40px'}}>暫無記帳紀錄</div>
           )}
         </>
       )}
 
-      {/* 🔵 TAB 2: 歷史明細清單頁面 */}
+      {/* 📅 TAB 2: 歷史明細清單頁面 (更新：按日期 Subgroup) */}
       {view === 'details' && (
         <div style={{width: '100%'}}>
-          <h3 style={styles.sectionTitle}>歷史流水帳明細 ({records.length} 筆)</h3>
-          {records.length > 0 ? (
-            <div style={styles.list}>
-              {records.map(rec => {
-                const mem = getMember(rec.member_id);
-                return (
-                  <div key={rec.id} style={styles.listItem}>
-                    <div style={styles.itemLeft}>
-                      <span style={{ color: mem.color, fontWeight: 'bold', minWidth: '50px' }}>{mem.name}</span>
-                      <span style={styles.catText}>{rec.main_category}·{rec.sub_category}</span>
-                      {rec.note && <span style={styles.noteText}>({rec.note})</span>}
-                    </div>
-                    <div style={styles.itemRight}>
-                      <span style={{ color: mem.color, fontWeight: 'bold', marginRight: '12px' }}>
-                        ${parseFloat(rec.amount).toFixed(1)}
-                      </span>
-                      <span onClick={() => handleDeleteExpense(rec.id)} style={styles.deleteBtn}>×</span>
-                    </div>
+          <h3 style={styles.sectionTitle}>歷史流水帳明細</h3>
+          {groupedRecords.length > 0 ? (
+            <div style={styles.timelineContainer}>
+              {groupedRecords.map(group => (
+                <div key={group.date} style={styles.dateGroup}>
+                  {/* 日期 Subgroup 標題欄 (附帶當日 Total) */}
+                  <div style={styles.dateHeaderRow}>
+                    <span style={styles.dateTitle}>{group.date}</span>
+                    <span style={styles.dateTotal}>當日計: ${group.total.toFixed(1)}</span>
                   </div>
-                );
-              })}
+
+                  {/* 該日期的紀錄清單 */}
+                  <div style={styles.dateItemList}>
+                    {group.items.map(rec => {
+                      const mem = getMember(rec.member_id);
+                      return (
+                        <div key={rec.id} style={styles.listItem}>
+                          <div style={styles.itemLeft}>
+                            {/* 新增：顯示精準時間 HH:MM:SS */}
+                            <span style={styles.timeText}>{rec.timeStr}</span>
+                            <span style={{ color: mem.color, fontWeight: 'bold', minWidth: '45px' }}>{mem.name}</span>
+                            <span style={styles.catText}>{rec.main_category}·{rec.sub_category}</span>
+                            {rec.note && <span style={styles.noteText}>({rec.note})</span>}
+                          </div>
+                          <div style={styles.itemRight}>
+                            <span style={{ color: mem.color, fontWeight: 'bold', marginRight: '12px' }}>
+                              ${parseFloat(rec.amount).toFixed(1)}
+                            </span>
+                            <span onClick={() => handleDeleteExpense(rec.id)} style={styles.deleteBtn}>×</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div style={{color: '#444', textAlign: 'center', marginTop: '40px'}}>清單空空如也</div>
@@ -342,7 +389,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 🔴 TAB 3: 設定管理頁面 */}
+      {/* TAB 3: 設定管理 */}
       {view === 'settings' && (
         <div style={styles.settingsContainer}>
           <div style={styles.settingsSection}>
@@ -391,11 +438,11 @@ export default function App() {
   );
 }
 
-// 🖤 支援 iPad / Mobile 響應式極黑樣式
+// 🖤 終端極黑樣式集
 const styles = {
   container: { backgroundColor: '#000000', color: '#aaaaaa', minHeight: '100vh', width: '100%', maxWidth: '600px', margin: '0 auto', padding: '20px 16px 100px 16px', fontFamily: 'monospace', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
   nav: { position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '600px', backgroundColor: '#050505', borderTop: '1px solid #111111', display: 'flex', justifyContent: 'space-around', padding: '16px 0', zIndex: 1000 },
-  navLink: { color: '#555555', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', transition: 'color 0.2s' },
+  navLink: { color: '#555555', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' },
   navActive: { color: '#ffffff', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', borderBottom: '2px solid #fff', paddingBottom: '4px' },
   form: { width: '100%', display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' },
   inputAmount: { backgroundColor: '#000', border: 'none', borderBottom: '2px solid #222', color: '#fff', fontSize: '44px', textAlign: 'center', width: '100%', outline: 'none', fontFamily: 'monospace', padding: '10px 0' },
@@ -410,10 +457,18 @@ const styles = {
   button: { backgroundColor: '#ffffff', color: '#000000', border: 'none', padding: '0 16px', height: '45px', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold', fontFamily: 'monospace', borderRadius: '4px', flexShrink: 0 },
   divider: { width: '100%', border: 'none', borderTop: '1px solid #111111', margin: '24px 0' },
   
-  list: { width: '100%', display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '15px' },
-  listItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #111111', gap: '10px' },
+  // 📅 歷史明細分組專屬樣式
+  timelineContainer: { width: '100%', display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '15px' },
+  dateGroup: { width: '100%', display: 'flex', flexDirection: 'column' },
+  dateHeaderRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#050505', borderLeft: '3px solid #fff', padding: '8px 12px', marginBottom: '8px', boxSizing: 'border-box' },
+  dateTitle: { color: '#ffffff', fontWeight: 'bold', fontSize: '14px' },
+  dateTotal: { color: '#888888', fontSize: '12px', fontWeight: 'bold' },
+  dateItemList: { display: 'flex', flexDirection: 'column', gap: '10px', paddingLeft: '4px' },
+
+  listItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid #0a0a0a', gap: '10px' },
   itemLeft: { display: 'flex', gap: '10px', alignItems: 'center', flex: 1, minWidth: 0, flexWrap: 'wrap' },
   itemRight: { display: 'flex', alignItems: 'center', flexShrink: 0 },
+  timeText: { color: '#333333', fontSize: '12px', marginRight: '4px', flexShrink: 0 }, // 超低調暗灰時間字體
   catText: { color: '#666666', fontSize: '13px', wordBreak: 'break-all' },
   noteText: { color: '#444444', fontSize: '13px', wordBreak: 'break-all' },
   
