@@ -343,111 +343,171 @@ export default function App() {
 }
 
 // 🖤 Minimal Black Tune Styles
+// 🖤 Minimal Black Tune Styles (手機完美優化版)
 const styles = {
-  container: {
-    backgroundColor: '#000000',
-    color: '#aaaaaa',
-    minHeight: '100vh',
-    padding: '20px',
-    fontFamily: 'monospace',
-    display: 'flex',
-    flexDirection: 'column',
+  container: { 
+    backgroundColor: '#000000', 
+    color: '#aaaaaa', 
+    minHeight: '100vh', 
+    width: '100%',
+    maxWidth: '480px', // 喺電腦睇就限死呢個手機闊度，好似一條 Stream 咁，極簡美
+    margin: '0 auto',
+    padding: '20px 16px 80px 16px', // 底部留 80px 費事俾固定導航欄遮住
+    fontFamily: 'monospace', 
+    display: 'flex', 
+    flexDirection: 'column', 
     alignItems: 'center',
+    boxSizing: 'border-box'
   },
-  nav: { display: 'flex', gap: '30px', marginBottom: '40px', fontSize: '14px' },
-  navLink: { color: '#555555', cursor: 'pointer', textDecoration: 'none' },
-  navActive: {
-    color: '#ffffff',
-    cursor: 'pointer',
-    borderBottom: '1px solid #fff',
-    pb: '2px',
-  },
-  form: {
+  
+  // 📱 下方固定導航欄 (好似原生 App 咁擺喺底，方便手指公撳)
+  nav: { 
+    position: 'fixed',
+    bottom: 0,
+    left: '50%',
+    transform: 'translateX(-50%)',
     width: '100%',
-    maxWidth: '450px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
+    maxWidth: '480px',
+    backgroundColor: '#050505',
+    borderTop: '1px solid #111111',
+    display: 'flex', 
+    justifyContent: 'space-around',
+    padding: '15px 0',
+    zIndex: 1000
   },
-  inputAmount: {
-    backgroundColor: '#000',
-    border: 'none',
-    borderBottom: '2px solid #222',
-    color: '#fff',
-    fontSize: '42px',
-    textAlign: 'center',
-    width: '100%',
-    outline: 'none',
-    fontFamily: 'monospace',
-  },
-  row: { display: 'flex', gap: '10px', width: '100%' },
-  select: {
-    backgroundColor: '#000',
-    border: '1px solid #222',
-    color: '#fff',
-    padding: '10px',
-    flex: 1,
-    outline: 'none',
-    cursor: 'pointer',
-    fontFamily: 'monospace',
-  },
-  inputNote: {
-    backgroundColor: '#000',
-    border: '1px solid #222',
-    color: '#fff',
-    padding: '10px',
-    flexGrow: 1,
-    outline: 'none',
-    fontFamily: 'monospace',
-  },
-  colorPicker: {
-    backgroundColor: '#000',
-    border: '1px solid #222',
-    width: '40px',
-    height: '40px',
-    padding: 0,
-    cursor: 'pointer',
-  },
-  button: {
-    backgroundColor: '#ffffff',
-    color: '#000000',
-    border: 'none',
-    padding: '0 15px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
-  },
-  divider: {
-    width: '100%',
-    maxWidth: '450px',
-    borderColor: '#111111',
-    margin: '25px 0',
-  },
-  list: {
-    width: '100%',
-    maxWidth: '450px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '14px',
-  },
-  listItem: {
-    display: 'flex',
-    justifyIntersection: 'space-between',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: '10px',
-    borderBottom: '1px solid #111',
+  navLink: { 
+    color: '#555555', 
+    cursor: 'pointer', 
     fontSize: '14px',
+    fontWeight: 'bold',
+    transition: 'color 0.2s'
   },
-  itemLeft: { display: 'flex', gap: '10px', alignItems: 'center' },
-  catText: { color: '#555' },
-  noteText: { color: '#333', fontSize: '12px' },
-  settingsContainer: {
-    width: '100%',
-    maxWidth: '450px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
+  navActive: { 
+    color: '#ffffff', 
+    cursor: 'pointer', 
+    fontSize: '14px',
+    fontWeight: 'bold',
+    borderBottom: '2px solid #fff', 
+    pb: '4px' 
   },
-  settingsSection: { width: '100%' },
+
+  form: { 
+    width: '100%', 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '20px',
+    marginTop: '20px'
+  },
+  
+  // 💰 金額輸入框加大，方便電話撳
+  inputAmount: { 
+    backgroundColor: '#000', 
+    border: 'none', 
+    borderBottom: '2px solid #222', 
+    color: '#fff', 
+    fontSize: '48px', // 字體夠大，iOS 唔會亂咁 Auto-zoom
+    textAlign: 'center', 
+    width: '100%', 
+    outline: 'none', 
+    fontFamily: 'monospace',
+    padding: '10px 0'
+  },
+  
+  row: { 
+    display: 'flex', 
+    gap: '10px', 
+    width: '100%' 
+  },
+  
+  // 強化手機 Select 觸控感
+  select: { 
+    backgroundColor: '#050505', 
+    border: '1px solid #222', 
+    color: '#fff', 
+    padding: '12px', // 加厚少少好撳啲
+    fontSize: '16px', // 關鍵：手機 input/select 超過 16px 就唔會觸發盲目 Zoom In
+    flex: 1, 
+    outline: 'none', 
+    cursor: 'pointer', 
+    fontFamily: 'monospace',
+    borderRadius: '4px',
+    WebkitAppearance: 'none' // 消除 iOS 預設嘅核突原生下拉箭咀
+  },
+  
+  inputNote: { 
+    backgroundColor: '#050505', 
+    border: '1px solid #222', 
+    color: '#fff', 
+    padding: '12px', 
+    fontSize: '16px', 
+    flexGrow: 1, 
+    outline: 'none', 
+    fontFamily: 'monospace',
+    borderRadius: '4px'
+  },
+  
+  colorPicker: { 
+    backgroundColor: '#000', 
+    border: '1px solid #222', 
+    width: '45px', 
+    height: '45px', 
+    padding: 0, 
+    cursor: 'pointer',
+    borderRadius: '4px'
+  },
+  
+  button: { 
+    backgroundColor: '#ffffff', 
+    color: '#000000', 
+    border: 'none', 
+    padding: '0 20px', 
+    fontSize: '18px',
+    cursor: 'pointer', 
+    fontWeight: 'bold', 
+    fontFamily: 'monospace',
+    borderRadius: '4px' 
+  },
+  
+  divider: { 
+    width: '100%', 
+    borderColor: '#111111', 
+    margin: '30px 0' 
+  },
+  
+  // 📜 流水帳列表（手機版靈活調整）
+  list: { 
+    width: '100%', 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '16px' 
+  },
+  listItem: { 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingBottom: '12px', 
+    borderBottom: '1px solid #111111'
+  },
+  itemLeft: { 
+    display: 'flex', 
+    gap: '12px', 
+    alignItems: 'center' 
+  },
+  catText: { 
+    color: '#666666',
+    fontSize: '14px' 
+  },
+  noteText: { 
+    color: '#333333', 
+    fontSize: '13px' 
+  },
+  settingsContainer: { 
+    width: '100%', 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '20px' 
+  },
+  settingsSection: { 
+    width: '100%' 
+  }
 };
