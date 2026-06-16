@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// 🔌 初始化 Supabase 連線 (請確保 RLS 已 Disable)
-const supabaseUrl = "https://uphtmvoshxwiuymapjen.supabase.co";
-const supabaseAnonKey = "貼上你嗰串 eyJ 開頭嘅超級長 anon public key"; 
+// 🔌 從環境變數讀取 (支援 Vite 格式，如果是 Next.js 請改成 process.env.NEXT_PUBLIC_...)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function App() {
   // --- States ---
-  const [view, setView] = useState('main'); // 'main' | 'settings'
+  const [view, setView] = useState('main'); 
   const [records, setRecords] = useState([]);
   const [members, setMembers] = useState([]);
-  const [categories, setCategories] = useState({}); // { '飲食': ['早餐', '午餐'] }
+  const [categories, setCategories] = useState({}); 
   const [rawCategories, setRawCategories] = useState([]); 
 
   // --- Form States (Main Page) ---
@@ -27,57 +27,88 @@ export default function App() {
   const [newMainCat, setNewMainCat] = useState('');
   const [newSubCat, setNewSubCat] = useState('');
 
-  // --- Initial Fetch ---
+  // --- 修正點 1：改用單一 useEffect 驅動初始載入，並加入 console.error 追蹤 ---
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchInitialData = async () => {
+      try {
+        console.log("🚀 開始撈取 Supabase 初始資料...");
+        
+        // 使用 Promise.all 同步撈取，防止任何一個卡死後面的執行
+        const [memRes, catRes] = await Promise.all([
+          supabase.from('members').select('*').order('id'),
+          supabase.from('categories').select('*').order('id')
+        ]);
+
+        if (!isMounted) return;
+
+        // 1. 處理成員
+        if (memRes.error) throw memRes.error;
+        if (memRes.data && memRes.data.length > 0) {
+          setMembers(memRes.data);
+          setSelectedMember(memRes.data[0].id.toString());
+        } else {
+          console.warn("⚠️ 目前資料庫沒有任何成員");
+        }
+
+        // 2. 處理分類
+        if (catRes.error) throw catRes.error;
+        if (catRes.data && catRes.data.length > 0) {
+          setRawCategories(catRes.data);
+          const catObj = {};
+          catRes.data.forEach(item => {
+            if (!catObj[item.main_category]) {
+              catObj[item.main_category] = [];
+            }
+            if (!catObj[item.main_category].includes(item.sub_category)) {
+              catObj[item.main_category].push(item.sub_category);
+            }
+          });
+          setCategories(catObj);
+          
+          const firstMain = Object.keys(catObj)[0];
+          if (firstMain) {
+            setMainCat(firstMain);
+            setSubCat(catObj[firstMain][0] || '');
+          }
+        } else {
+          console.warn("⚠️ 目前資料庫沒有任何分類");
+        }
+
+        // 3. 撈取支出紀錄
+        await fetchExpenses();
+
+      } catch (err) {
+        console.error("❌ 讀取資料失敗，請檢查 Supabase URL/Key 或 RLS 設定:", err);
+      }
+    };
+
     fetchInitialData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const fetchInitialData = async () => {
-    // 1. 撈成員
-    const { data: memData } = await supabase.from('members').select('*').order('id');
-    if (memData && memData.length > 0) {
-      setMembers(memData);
-      // 確保一定有預設選中的 Member ID (轉成字串防呆)
-      setSelectedMember(memData[0].id.toString());
-    }
-
-    // 2. 撈分類
-    const { data: catData } = await supabase.from('categories').select('*').order('id');
-    if (catData) {
-      setRawCategories(catData);
-      const catObj = {};
-      catData.forEach(item => {
-        if (!catObj[item.main_category]) {
-          catObj[item.main_category] = [];
-        }
-        if (!catObj[item.main_category].includes(item.sub_category)) {
-          catObj[item.main_category].push(item.sub_category);
-        }
-      });
-      setCategories(catObj);
-      
-      const firstMain = Object.keys(catObj)[0];
-      if (firstMain) {
-        setMainCat(firstMain);
-        setSubCat(catObj[firstMain][0] || '');
-      }
-    }
-
-    // 3. 撈支出紀錄
-    fetchExpenses();
-  };
-
   const fetchExpenses = async () => {
-    const { data } = await supabase
-      .from('expenses')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (data) setRecords(data);
+    try {
+      console.log("📊 正在更新支出紀錄...");
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      if (data) setRecords(data);
+    } catch (err) {
+      console.error("❌ 撈取支出紀錄失敗:", err);
+    }
   };
 
-  // 當主分類轉變，自動連動子分類
+  // --- 修正點 2：加入防呆，只有當 mainCat 真的存在於 categories 時才連動更新 ---
   useEffect(() => {
-    if (categories[mainCat]) {
+    if (mainCat && categories[mainCat]) {
       setSubCat(categories[mainCat][0] || '');
     }
   }, [mainCat, categories]);
@@ -88,7 +119,7 @@ export default function App() {
     if (!amount || isNaN(amount) || !selectedMember) return;
 
     const { error } = await supabase.from('expenses').insert([{
-      member_id: parseInt(selectedMember), // 轉回數字配合 Database
+      member_id: parseInt(selectedMember),
       amount: parseFloat(amount),
       main_category: mainCat,
       sub_category: subCat,
@@ -104,7 +135,6 @@ export default function App() {
     }
   };
 
-  // 🗑️ 刪除流水帳項目
   const handleDeleteExpense = async (id) => {
     if (window.confirm('確定要刪除呢筆帳目？')) {
       const { error } = await supabase.from('expenses').delete().eq('id', id);
@@ -116,23 +146,24 @@ export default function App() {
     }
   };
 
-  // --- Actions: Settings ---
   const handleAddMember = async (e) => {
     e.preventDefault();
     if (!newMemberName) return;
     const { error } = await supabase.from('members').insert([{ name: newMemberName, color: newMemberColor }]);
     if (!error) {
       setNewMemberName('');
-      fetchInitialData();
+      // 重新整理資料
+      const { data } = await supabase.from('members').select('*').order('id');
+      if (data) setMembers(data);
     }
   };
 
-  // 🗑️ 刪除成員
   const handleDeleteMember = async (id) => {
     if (window.confirm('警告：刪除成員會一併刪除佢所有記帳紀錄！確定？')) {
       const { error } = await supabase.from('members').delete().eq('id', id);
       if (!error) {
-        fetchInitialData();
+        const { data } = await supabase.from('members').select('*').order('id');
+        if (data) setMembers(data);
       }
     }
   };
@@ -144,21 +175,30 @@ export default function App() {
     if (!error) {
       setNewMainCat('');
       setNewSubCat('');
-      fetchInitialData();
-    }
-  };
-
-  // 🗑️ 刪除特定子分類
-  const handleDeleteCategory = async (id) => {
-    if (window.confirm('確定要刪除呢個分類？')) {
-      const { error } = await supabase.from('categories').delete().eq('id', id);
-      if (!error) {
-        fetchInitialData();
+      // 重新整理分類
+      const { data } = await supabase.from('categories').select('*').order('id');
+      if (data) {
+        setRawCategories(data);
+        const catObj = {};
+        data.forEach(item => {
+          if (!catObj[item.main_category]) catObj[item.main_category] = [];
+          if (!catObj[item.main_category].includes(item.sub_category)) catObj[item.main_category].push(item.sub_category);
+        });
+        setCategories(catObj);
       }
     }
   };
 
-  // --- Helpers (防呆確保一定攞到 Object，唔會爆 properties of undefined) ---
+  const handleDeleteCategory = async (id) => {
+    if (window.confirm('確定要刪除呢個分類？')) {
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (!error) {
+        const { data } = await supabase.from('categories').select('*').order('id');
+        if (data) setRawCategories(data);
+      }
+    }
+  };
+
   const getMember = (id) => {
     if (!id) return { name: '...', color: '#888888' };
     const found = members.find(m => m.id.toString() === id.toString());
@@ -167,7 +207,6 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      {/* 📱 下方固定導航欄 */}
       <nav style={styles.nav}>
         <span style={view === 'main' ? styles.navActive : styles.navLink} onClick={() => setView('main')}>流水帳</span>
         <span style={view === 'settings' ? styles.navActive : styles.navLink} onClick={() => setView('settings')}>設定 (分類/成員)</span>
@@ -175,7 +214,6 @@ export default function App() {
 
       {view === 'main' ? (
         <>
-          {/* 記帳 Form */}
           <form onSubmit={handleAddExpense} style={styles.form}>
             <input
               type="number"
@@ -220,7 +258,6 @@ export default function App() {
 
           <hr style={styles.divider} />
 
-          {/* 紀錄列表 */}
           <div style={styles.list}>
             {records.map(rec => {
               const mem = getMember(rec.member_id);
@@ -243,7 +280,6 @@ export default function App() {
           </div>
         </>
       ) : (
-        /* 設定頁面 */
         <div style={styles.settingsContainer}>
           <div style={styles.settingsSection}>
             <h3>成員名單</h3>
@@ -254,7 +290,7 @@ export default function App() {
             </form>
             <div style={{marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '8px'}}>
               {members.map(m => (
-                <div key={m.id} style={{display: 'flex', justifyIntersection: 'space-between', justifyContent: 'space-between', borderBottom: '1px solid #111', paddingBottom: '6px'}}>
+                <div key={m.id} style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #111', paddingBottom: '6px'}}>
                   <span style={{color: m.color}}>{m.name}</span>
                   <span onClick={() => handleDeleteMember(m.id)} style={styles.deleteBtn}>×</span>
                 </div>
@@ -274,7 +310,7 @@ export default function App() {
             
             <div style={{marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
               {rawCategories.map(cat => (
-                <div key={cat.id} style={{display: 'flex', justifyIntersection: 'space-between', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', borderBottom: '1px solid #111', paddingBottom: '6px'}}>
+                <div key={cat.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', borderBottom: '1px solid #111', paddingBottom: '6px'}}>
                   <div>
                     <span style={{color: '#fff'}}>{cat.main_category}</span>
                     <span style={{color: '#666', margin: '0 8px'}}>➔</span>
@@ -291,12 +327,11 @@ export default function App() {
   );
 }
 
-// 🖤 Minimal Black Tune Styles (手機完美優化版)
 const styles = {
   container: { backgroundColor: '#000000', color: '#aaaaaa', minHeight: '100vh', width: '100%', maxWidth: '480px', margin: '0 auto', padding: '20px 16px 80px 16px', fontFamily: 'monospace', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' },
   nav: { position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', backgroundColor: '#050505', borderTop: '1px solid #111111', display: 'flex', justifyContent: 'space-around', padding: '15px 0', zIndex: 1000 },
   navLink: { color: '#555555', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' },
-  navActive: { color: '#ffffff', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', borderBottom: '2px solid #fff', pb: '4px' },
+  navActive: { color: '#ffffff', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', borderBottom: '2px solid #fff', paddingBottom: '4px' },
   form: { width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' },
   inputAmount: { backgroundColor: '#000', border: 'none', borderBottom: '2px solid #222', color: '#fff', fontSize: '48px', textAlign: 'center', width: '100%', outline: 'none', fontFamily: 'monospace', padding: '10px 0' },
   row: { display: 'flex', gap: '10px', width: '100%' },
