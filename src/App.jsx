@@ -13,7 +13,7 @@ const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "");
 
 export default function App() {
   // --- States ---
-  const [view, setView] = useState('main'); 
+  const [view, setView] = useState('main'); // 'main' | 'details' | 'settings'
   const [records, setRecords] = useState([]);
   const [members, setMembers] = useState([]);
   const [categories, setCategories] = useState({}); 
@@ -104,7 +104,6 @@ export default function App() {
       .map(name => ({ name, amount: catMap[name] }))
       .sort((a, b) => b.amount - a.amount);
 
-    // 找出分類中的最大值，作為圖表 100% 的基準線
     const maxCatAmount = sortedCats.length > 0 ? sortedCats[0].amount : 0;
 
     return { total, memberMap, sortedCats, maxCatAmount };
@@ -123,7 +122,12 @@ export default function App() {
       sub_category: subCat,
       note: note
     }]);
-    if (!error) { setAmount(''); setNote(''); fetchExpenses(); }
+    if (!error) { 
+      setAmount(''); 
+      setNote(''); 
+      fetchExpenses(); 
+      window.alert('✅ 記帳成功！');
+    }
   };
 
   const handleDeleteExpense = async (id) => {
@@ -190,15 +194,16 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      {/* 固定導航欄 */}
+      {/* 📱 下方 3-Tab 固定導航欄 */}
       <nav style={styles.nav}>
-        <span style={view === 'main' ? styles.navActive : styles.navLink} onClick={() => setView('main')}>流水帳</span>
-        <span style={view === 'settings' ? styles.navActive : styles.navLink} onClick={() => setView('settings')}>設定 (分類/成員)</span>
+        <span style={view === 'main' ? styles.navActive : styles.navLink} onClick={() => setView('main')}>記帳/圖表</span>
+        <span style={view === 'details' ? styles.navActive : styles.navLink} onClick={() => setView('details')}>歷史明細</span>
+        <span style={view === 'settings' ? styles.navActive : styles.navLink} onClick={() => setView('settings')}>設定管理</span>
       </nav>
 
-      {view === 'main' ? (
+      {/* 🟢 TAB 1: 記帳主頁面 + 圖表分析 */}
+      {view === 'main' && (
         <>
-          {/* 記帳 Form */}
           <form onSubmit={handleAddExpense} style={styles.form}>
             <input
               type="number"
@@ -241,8 +246,8 @@ export default function App() {
             </div>
           </form>
 
-          {/* 📊 數據統計與圖表區塊 */}
-          {records.length > 0 && (
+          {/* 📊 動態圖表板 */}
+          {records.length > 0 ? (
             <div style={styles.statsContainer}>
               <div style={styles.totalBlock}>
                 <div style={styles.statsLabel}>總支出總計</div>
@@ -250,7 +255,7 @@ export default function App() {
               </div>
               
               <div style={styles.statsGrid}>
-                {/* 📊 成員圖表 */}
+                {/* 成員比例條 */}
                 <div style={styles.statsCard}>
                   <div style={styles.statsCardTitle}>成員分擔比例</div>
                   <div style={styles.statsCardList}>
@@ -265,7 +270,6 @@ export default function App() {
                               ${mAmount.toFixed(0)} <span style={{fontSize: '11px', color: '#555'}}>({percent.toFixed(0)}%)</span>
                             </span>
                           </div>
-                          {/* 圖表條 (動態寬度) */}
                           <div style={styles.chartTrack}>
                             <div style={{...styles.chartBar, width: `${percent}%`, backgroundColor: m.color}} />
                           </div>
@@ -275,13 +279,12 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 📊 分類排行圖表 */}
+                {/* 分類消耗條 */}
                 <div style={styles.statsCard}>
                   <div style={styles.statsCardTitle}>主分類消耗排行 (TOP 3)</div>
                   <div style={styles.statsCardList}>
                     {stats.sortedCats.slice(0, 3).map((c, index) => {
                       const percent = stats.total > 0 ? (c.amount / stats.total) * 100 : 0;
-                      // 計算相對於最高金額的條形長度基準值
                       const barWidth = stats.maxCatAmount > 0 ? (c.amount / stats.maxCatAmount) * 100 : 0;
                       return (
                         <div key={c.name} style={{marginBottom: '10px'}}>
@@ -292,48 +295,55 @@ export default function App() {
                               ${c.amount.toFixed(0)} <span style={{fontSize: '11px', color: '#555'}}>({percent.toFixed(0)}%)</span>
                             </span>
                           </div>
-                          {/* 圖表條 (動態寬度) */}
                           <div style={styles.chartTrack}>
                             <div style={{...styles.chartBar, width: `${barWidth}%`, backgroundColor: '#ffffff'}} />
                           </div>
                         </div>
                       );
                     })}
-                    {stats.sortedCats.length === 0 && (
-                      <div style={{color: '#444', fontSize: '12px', textAlign: 'center', marginTop: '10px'}}>暫無分類數據</div>
-                    )}
                   </div>
                 </div>
               </div>
             </div>
+          ) : (
+            <div style={{color: '#333', textAlign: 'center', marginTop: '40px'}}>暫無記帳紀錄，快啲記第一筆啦！</div>
           )}
-
-          <hr style={styles.divider} />
-
-          {/* 紀錄列表 */}
-          <div style={styles.list}>
-            {records.map(rec => {
-              const mem = getMember(rec.member_id);
-              return (
-                <div key={rec.id} style={styles.listItem}>
-                  <div style={styles.itemLeft}>
-                    <span style={{ color: mem.color, fontWeight: 'bold', minWidth: '50px' }}>{mem.name}</span>
-                    <span style={styles.catText}>{rec.main_category}·{rec.sub_category}</span>
-                    {rec.note && <span style={styles.noteText}>({rec.note})</span>}
-                  </div>
-                  <div style={styles.itemRight}>
-                    <span style={{ color: mem.color, fontWeight: 'bold', marginRight: '12px' }}>
-                      ${parseFloat(rec.amount).toFixed(1)}
-                    </span>
-                    <span onClick={() => handleDeleteExpense(rec.id)} style={styles.deleteBtn}>×</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </>
-      ) : (
-        /* 設定頁面 */
+      )}
+
+      {/* 🔵 TAB 2: 歷史明細清單頁面 */}
+      {view === 'details' && (
+        <div style={{width: '100%'}}>
+          <h3 style={styles.sectionTitle}>歷史流水帳明細 ({records.length} 筆)</h3>
+          {records.length > 0 ? (
+            <div style={styles.list}>
+              {records.map(rec => {
+                const mem = getMember(rec.member_id);
+                return (
+                  <div key={rec.id} style={styles.listItem}>
+                    <div style={styles.itemLeft}>
+                      <span style={{ color: mem.color, fontWeight: 'bold', minWidth: '50px' }}>{mem.name}</span>
+                      <span style={styles.catText}>{rec.main_category}·{rec.sub_category}</span>
+                      {rec.note && <span style={styles.noteText}>({rec.note})</span>}
+                    </div>
+                    <div style={styles.itemRight}>
+                      <span style={{ color: mem.color, fontWeight: 'bold', marginRight: '12px' }}>
+                        ${parseFloat(rec.amount).toFixed(1)}
+                      </span>
+                      <span onClick={() => handleDeleteExpense(rec.id)} style={styles.deleteBtn}>×</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{color: '#444', textAlign: 'center', marginTop: '40px'}}>清單空空如也</div>
+          )}
+        </div>
+      )}
+
+      {/* 🔴 TAB 3: 設定管理頁面 */}
+      {view === 'settings' && (
         <div style={styles.settingsContainer}>
           <div style={styles.settingsSection}>
             <h3 style={styles.sectionTitle}>成員名單</h3>
@@ -381,12 +391,12 @@ export default function App() {
   );
 }
 
-// 🖤 樣式集
+// 🖤 支援 iPad / Mobile 響應式極黑樣式
 const styles = {
   container: { backgroundColor: '#000000', color: '#aaaaaa', minHeight: '100vh', width: '100%', maxWidth: '600px', margin: '0 auto', padding: '20px 16px 100px 16px', fontFamily: 'monospace', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
   nav: { position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '600px', backgroundColor: '#050505', borderTop: '1px solid #111111', display: 'flex', justifyContent: 'space-around', padding: '16px 0', zIndex: 1000 },
-  navLink: { color: '#555555', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' },
-  navActive: { color: '#ffffff', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', borderBottom: '2px solid #fff', paddingBottom: '4px' },
+  navLink: { color: '#555555', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', transition: 'color 0.2s' },
+  navActive: { color: '#ffffff', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', borderBottom: '2px solid #fff', paddingBottom: '4px' },
   form: { width: '100%', display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' },
   inputAmount: { backgroundColor: '#000', border: 'none', borderBottom: '2px solid #222', color: '#fff', fontSize: '44px', textAlign: 'center', width: '100%', outline: 'none', fontFamily: 'monospace', padding: '10px 0' },
   row: { display: 'flex', gap: '10px', width: '100%', alignItems: 'center' },
@@ -399,8 +409,8 @@ const styles = {
   colorPicker: { backgroundColor: '#000', border: '1px solid #222', width: '45px', height: '45px', padding: 0, cursor: 'pointer', borderRadius: '4px', flexShrink: 0 },
   button: { backgroundColor: '#ffffff', color: '#000000', border: 'none', padding: '0 16px', height: '45px', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold', fontFamily: 'monospace', borderRadius: '4px', flexShrink: 0 },
   divider: { width: '100%', border: 'none', borderTop: '1px solid #111111', margin: '24px 0' },
-  list: { width: '100%', display: 'flex', flexDirection: 'column', gap: '14px' },
   
+  list: { width: '100%', display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '15px' },
   listItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #111111', gap: '10px' },
   itemLeft: { display: 'flex', gap: '10px', alignItems: 'center', flex: 1, minWidth: 0, flexWrap: 'wrap' },
   itemRight: { display: 'flex', alignItems: 'center', flexShrink: 0 },
@@ -409,7 +419,7 @@ const styles = {
   
   settingsContainer: { width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' },
   settingsSection: { width: '100%', boxSizing: 'border-box' },
-  sectionTitle: { color: '#fff', fontSize: '16px', marginBottom: '12px' },
+  sectionTitle: { color: '#fff', fontSize: '16px', marginBottom: '12px', fontFamily: 'monospace' },
   settingsItemRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #111', paddingBottom: '8px', gap: '15px', width: '100%' },
   catNameContainer: { display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, flexWrap: 'wrap', fontSize: '14px' },
   deleteBtn: { color: '#555', cursor: 'pointer', fontSize: '20px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, userSelect: 'none' },
@@ -424,7 +434,6 @@ const styles = {
   statsCardList: { display: 'flex', flexDirection: 'column', gap: '4px' },
   statsCardItem: { display: 'flex', alignItems: 'center', fontSize: '13px', width: '100%' },
 
-  // 📈 自製能量條圖表樣式 (極黑主題最佳解)
   chartTrack: { width: '100%', height: '4px', backgroundColor: '#111111', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' },
   chartBar: { height: '100%', borderRadius: '2px', transition: 'width 0.4s ease-out' }
 };
