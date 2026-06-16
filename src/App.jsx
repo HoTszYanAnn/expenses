@@ -82,12 +82,10 @@ export default function App() {
     }
   }, [mainCat, categories]);
 
-  // --- 📊 即時數據分析統計邏輯 (新功能) ---
+  // --- 📊 數據統計與圖表邏輯 ---
   const getStats = () => {
-    // 1. 總金額
     const total = records.reduce((sum, rec) => sum + parseFloat(rec.amount || 0), 0);
 
-    // 2. 成員消費分佈
     const memberMap = {};
     members.forEach(m => { memberMap[m.id] = 0; });
     records.forEach(rec => {
@@ -96,19 +94,20 @@ export default function App() {
       }
     });
 
-    // 3. 主分類排行
     const catMap = {};
     records.forEach(rec => {
       if (!catMap[rec.main_category]) catMap[rec.main_category] = 0;
       catMap[rec.main_category] += parseFloat(rec.amount || 0);
     });
     
-    // 轉成陣列並排序
     const sortedCats = Object.keys(catMap)
       .map(name => ({ name, amount: catMap[name] }))
       .sort((a, b) => b.amount - a.amount);
 
-    return { total, memberMap, sortedCats };
+    // 找出分類中的最大值，作為圖表 100% 的基準線
+    const maxCatAmount = sortedCats.length > 0 ? sortedCats[0].amount : 0;
+
+    return { total, memberMap, sortedCats, maxCatAmount };
   };
 
   const stats = getStats();
@@ -242,7 +241,7 @@ export default function App() {
             </div>
           </form>
 
-          {/* 📊 數據統計區區塊 (新功能) */}
+          {/* 📊 數據統計與圖表區塊 */}
           {records.length > 0 && (
             <div style={styles.statsContainer}>
               <div style={styles.totalBlock}>
@@ -251,37 +250,52 @@ export default function App() {
               </div>
               
               <div style={styles.statsGrid}>
-                {/* 左側：成員分佈 */}
+                {/* 📊 成員圖表 */}
                 <div style={styles.statsCard}>
-                  <div style={styles.statsCardTitle}>成員分擔</div>
+                  <div style={styles.statsCardTitle}>成員分擔比例</div>
                   <div style={styles.statsCardList}>
                     {members.map(m => {
                       const mAmount = stats.memberMap[m.id] || 0;
-                      const percent = stats.total > 0 ? ((mAmount / stats.total) * 100).toFixed(0) : 0;
+                      const percent = stats.total > 0 ? (mAmount / stats.total) * 100 : 0;
                       return (
-                        <div key={m.id} style={styles.statsCardItem}>
-                          <span style={{...styles.dot, backgroundColor: m.color}}></span>
-                          <span style={{color: '#fff', flex: 1}}>{m.name}</span>
-                          <span style={{color: '#666', fontSize: '12px', marginRight: '6px'}}>{percent}%</span>
-                          <span style={{color: m.color, fontWeight: 'bold'}}>${mAmount.toFixed(0)}</span>
+                        <div key={m.id} style={{marginBottom: '10px'}}>
+                          <div style={styles.statsCardItem}>
+                            <span style={{color: '#fff', fontWeight: 'bold'}}>{m.name}</span>
+                            <span style={{color: m.color, marginLeft: 'auto', fontWeight: 'bold'}}>
+                              ${mAmount.toFixed(0)} <span style={{fontSize: '11px', color: '#555'}}>({percent.toFixed(0)}%)</span>
+                            </span>
+                          </div>
+                          {/* 圖表條 (動態寬度) */}
+                          <div style={styles.chartTrack}>
+                            <div style={{...styles.chartBar, width: `${percent}%`, backgroundColor: m.color}} />
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* 右側：分類排行 */}
+                {/* 📊 分類排行圖表 */}
                 <div style={styles.statsCard}>
-                  <div style={styles.statsCardTitle}>分類消耗 (TOP 3)</div>
+                  <div style={styles.statsCardTitle}>主分類消耗排行 (TOP 3)</div>
                   <div style={styles.statsCardList}>
                     {stats.sortedCats.slice(0, 3).map((c, index) => {
-                      const percent = stats.total > 0 ? ((c.amount / stats.total) * 100).toFixed(0) : 0;
+                      const percent = stats.total > 0 ? (c.amount / stats.total) * 100 : 0;
+                      // 計算相對於最高金額的條形長度基準值
+                      const barWidth = stats.maxCatAmount > 0 ? (c.amount / stats.maxCatAmount) * 100 : 0;
                       return (
-                        <div key={c.name} style={styles.statsCardItem}>
-                          <span style={{color: '#666', marginRight: '6px'}}>{index + 1}.</span>
-                          <span style={{color: '#fff', flex: 1, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap'}}>{c.name}</span>
-                          <span style={{color: '#666', fontSize: '12px', marginRight: '6px'}}>{percent}%</span>
-                          <span style={{color: '#aaa'}}>${c.amount.toFixed(0)}</span>
+                        <div key={c.name} style={{marginBottom: '10px'}}>
+                          <div style={styles.statsCardItem}>
+                            <span style={{color: '#666', marginRight: '6px'}}>{index + 1}.</span>
+                            <span style={{color: '#fff', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap'}}>{c.name}</span>
+                            <span style={{color: '#aaa', marginLeft: 'auto'}}>
+                              ${c.amount.toFixed(0)} <span style={{fontSize: '11px', color: '#555'}}>({percent.toFixed(0)}%)</span>
+                            </span>
+                          </div>
+                          {/* 圖表條 (動態寬度) */}
+                          <div style={styles.chartTrack}>
+                            <div style={{...styles.chartBar, width: `${barWidth}%`, backgroundColor: '#ffffff'}} />
+                          </div>
                         </div>
                       );
                     })}
@@ -367,7 +381,7 @@ export default function App() {
   );
 }
 
-// 🖤 支援 iPad / Mobile 的響應式極黑樣式
+// 🖤 樣式集
 const styles = {
   container: { backgroundColor: '#000000', color: '#aaaaaa', minHeight: '100vh', width: '100%', maxWidth: '600px', margin: '0 auto', padding: '20px 16px 100px 16px', fontFamily: 'monospace', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
   nav: { position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '600px', backgroundColor: '#050505', borderTop: '1px solid #111111', display: 'flex', justifyContent: 'space-around', padding: '16px 0', zIndex: 1000 },
@@ -400,15 +414,17 @@ const styles = {
   catNameContainer: { display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, flexWrap: 'wrap', fontSize: '14px' },
   deleteBtn: { color: '#555', cursor: 'pointer', fontSize: '20px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, userSelect: 'none' },
 
-  // 📊 統計面板專屬優化樣式 (保持極簡黑魂味)
   statsContainer: { width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '24px', boxSizing: 'border-box' },
   totalBlock: { backgroundColor: '#050505', border: '1px solid #111', padding: '16px', borderRadius: '4px', textAlign: 'center' },
   statsLabel: { color: '#444', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' },
   totalText: { color: '#fff', fontSize: '32px', fontWeight: 'bold', marginTop: '4px' },
   statsGrid: { display: 'flex', gap: '12px', width: '100%', flexWrap: 'wrap' },
   statsCard: { backgroundColor: '#050505', border: '1px solid #111', padding: '12px', borderRadius: '4px', flex: 1, minWidth: '240px', boxSizing: 'border-box' },
-  statsCardTitle: { color: '#555', fontSize: '12px', fontWeight: 'bold', borderBottom: '1px solid #111', paddingBottom: '6px', marginBottom: '8px' },
-  statsCardList: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  statsCardTitle: { color: '#555', fontSize: '12px', fontWeight: 'bold', borderBottom: '1px solid #111', paddingBottom: '6px', marginBottom: '12px' },
+  statsCardList: { display: 'flex', flexDirection: 'column', gap: '4px' },
   statsCardItem: { display: 'flex', alignItems: 'center', fontSize: '13px', width: '100%' },
-  dot: { width: '8px', height: '8px', borderRadius: '50%', marginRight: '8px', flexShrink: 0 }
+
+  // 📈 自製能量條圖表樣式 (極黑主題最佳解)
+  chartTrack: { width: '100%', height: '4px', backgroundColor: '#111111', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' },
+  chartBar: { height: '100%', borderRadius: '2px', transition: 'width 0.4s ease-out' }
 };
