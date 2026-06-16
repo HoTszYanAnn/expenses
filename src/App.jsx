@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// 🔌 初始化 Supabase 連線 (請確保 Key 正確，RLS 已 Disable)
+// 🔌 初始化 Supabase 連線 (請確保 RLS 已 Disable)
 const supabaseUrl = "https://uphtmvoshxwiuymapjen.supabase.co";
 const supabaseAnonKey = "貼上你嗰串 eyJ 開頭嘅超級長 anon public key"; 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -12,7 +12,7 @@ export default function App() {
   const [records, setRecords] = useState([]);
   const [members, setMembers] = useState([]);
   const [categories, setCategories] = useState({}); // { '飲食': ['早餐', '午餐'] }
-  const [rawCategories, setRawCategories] = useState([]); // 儲存未經處理的分類 raw data 方便刪除
+  const [rawCategories, setRawCategories] = useState([]); 
 
   // --- Form States (Main Page) ---
   const [amount, setAmount] = useState('');
@@ -35,9 +35,10 @@ export default function App() {
   const fetchInitialData = async () => {
     // 1. 撈成員
     const { data: memData } = await supabase.from('members').select('*').order('id');
-    if (memData) {
+    if (memData && memData.length > 0) {
       setMembers(memData);
-      if (memData.length > 0 && !selectedMember) setSelectedMember(memData[0].id);
+      // 確保一定有預設選中的 Member ID (轉成字串防呆)
+      setSelectedMember(memData[0].id.toString());
     }
 
     // 2. 撈分類
@@ -56,7 +57,7 @@ export default function App() {
       setCategories(catObj);
       
       const firstMain = Object.keys(catObj)[0];
-      if (firstMain && !mainCat) {
+      if (firstMain) {
         setMainCat(firstMain);
         setSubCat(catObj[firstMain][0] || '');
       }
@@ -84,10 +85,10 @@ export default function App() {
   // --- Actions: Submit Expense ---
   const handleAddExpense = async (e) => {
     e.preventDefault();
-    if (!amount || isNaN(amount)) return;
+    if (!amount || isNaN(amount) || !selectedMember) return;
 
     const { error } = await supabase.from('expenses').insert([{
-      member_id: parseInt(selectedMember),
+      member_id: parseInt(selectedMember), // 轉回數字配合 Database
       amount: parseFloat(amount),
       main_category: mainCat,
       sub_category: subCat,
@@ -98,6 +99,8 @@ export default function App() {
       setAmount('');
       setNote('');
       fetchExpenses();
+    } else {
+      console.error("Insert Expense Error:", error);
     }
   };
 
@@ -107,6 +110,8 @@ export default function App() {
       const { error } = await supabase.from('expenses').delete().eq('id', id);
       if (!error) {
         fetchExpenses();
+      } else {
+        console.error("Delete Expense Error:", error);
       }
     }
   };
@@ -122,7 +127,7 @@ export default function App() {
     }
   };
 
-  // 🗑️ 刪除成員 (注意：根據我們寫的 SQL，刪除成員會連帶刪除該成員所有帳目)
+  // 🗑️ 刪除成員
   const handleDeleteMember = async (id) => {
     if (window.confirm('警告：刪除成員會一併刪除佢所有記帳紀錄！確定？')) {
       const { error } = await supabase.from('members').delete().eq('id', id);
@@ -153,8 +158,12 @@ export default function App() {
     }
   };
 
-  // --- Helpers ---
-  const getMember = (id) => members.find(m => m.id === id) || { name: 'Unknown', color: '#888888' };
+  // --- Helpers (防呆確保一定攞到 Object，唔會爆 properties of undefined) ---
+  const getMember = (id) => {
+    if (!id) return { name: '...', color: '#888888' };
+    const found = members.find(m => m.id.toString() === id.toString());
+    return found || { name: 'Unknown', color: '#888888' };
+  };
 
   return (
     <div style={styles.container}>
@@ -180,8 +189,12 @@ export default function App() {
             />
 
             <div style={styles.row}>
-              <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)} style={{...styles.select, color: getMember(parseInt(selectedMember)).color}}>
-                {members.map(m => <option key={m.id} value={m.id} style={{color: m.color}}>{m.name}</option>)}
+              <select 
+                value={selectedMember} 
+                onChange={(e) => setSelectedMember(e.target.value)} 
+                style={{...styles.select, color: getMember(selectedMember).color}}
+              >
+                {members.map(m => <option key={m.id} value={m.id.toString()} style={{color: m.color}}>{m.name}</option>)}
               </select>
 
               <select value={mainCat} onChange={(e) => setMainCat(e.target.value)} style={styles.select}>
@@ -222,7 +235,6 @@ export default function App() {
                     <span style={{ color: mem.color, fontWeight: 'bold', marginRight: '15px' }}>
                       ${parseFloat(rec.amount).toFixed(1)}
                     </span>
-                    {/* 🗑️ 刪除此行連結 */}
                     <span onClick={() => handleDeleteExpense(rec.id)} style={styles.deleteBtn}>×</span>
                   </div>
                 </div>
@@ -242,7 +254,7 @@ export default function App() {
             </form>
             <div style={{marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '8px'}}>
               {members.map(m => (
-                <div key={m.id} style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #111', paddingBottom: '6px'}}>
+                <div key={m.id} style={{display: 'flex', justifyIntersection: 'space-between', justifyContent: 'space-between', borderBottom: '1px solid #111', paddingBottom: '6px'}}>
                   <span style={{color: m.color}}>{m.name}</span>
                   <span onClick={() => handleDeleteMember(m.id)} style={styles.deleteBtn}>×</span>
                 </div>
@@ -262,7 +274,7 @@ export default function App() {
             
             <div style={{marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
               {rawCategories.map(cat => (
-                <div key={cat.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', borderBottom: '1px solid #111', paddingBottom: '6px'}}>
+                <div key={cat.id} style={{display: 'flex', justifyIntersection: 'space-between', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', borderBottom: '1px solid #111', paddingBottom: '6px'}}>
                   <div>
                     <span style={{color: '#fff'}}>{cat.main_category}</span>
                     <span style={{color: '#666', margin: '0 8px'}}>➔</span>
@@ -288,7 +300,7 @@ const styles = {
   form: { width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' },
   inputAmount: { backgroundColor: '#000', border: 'none', borderBottom: '2px solid #222', color: '#fff', fontSize: '48px', textAlign: 'center', width: '100%', outline: 'none', fontFamily: 'monospace', padding: '10px 0' },
   row: { display: 'flex', gap: '10px', width: '100%' },
-  select: { backgroundColor: '#050505', border: '1px solid #222', color: '#fff', padding: '12px', fontSize: '16px', flex: 1, outline: 'none', cursor: 'pointer', fontFamily: 'monospace', borderRadius: '4px', WebkitAppearance: 'none' },
+  select: { backgroundColor: '#050505', border: '1px solid #222', color: '#fff', padding: '12px', fontSize: '16px', flex: 1, outline: 'none', cursor: 'pointer', fontFamily: 'monospace', borderRadius: '4px' },
   inputNote: { backgroundColor: '#050505', border: '1px solid #222', color: '#fff', padding: '12px', fontSize: '16px', flexGrow: 1, outline: 'none', fontFamily: 'monospace', borderRadius: '4px' },
   colorPicker: { backgroundColor: '#000', border: '1px solid #222', width: '45px', height: '45px', padding: 0, cursor: 'pointer', borderRadius: '4px' },
   button: { backgroundColor: '#ffffff', color: '#000000', border: 'none', padding: '0 20px', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold', fontFamily: 'monospace', borderRadius: '4px' },
