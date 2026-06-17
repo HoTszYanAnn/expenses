@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import * as S from './ExpenseTracker.styles.jsx';
 
 export default function MainTab({
@@ -39,6 +39,42 @@ export default function MainTab({
       maxTime: `${hh}:${min}`
     };
   }, [expenseForm.expenseDate]);
+
+  // 🧠 核心記憶功能一：當組件第一次 Mount 載入時，自動翻查 LocalStorage 幫用家自動 Pre-select 
+  useEffect(() => {
+    const lastMember = localStorage.getItem('last_expense_member_id');
+    const lastMainCat = localStorage.getItem('last_expense_main_cat');
+    const lastSubCat = localStorage.getItem('last_expense_sub_cat');
+
+    // 確保有歷史記憶，而且該成員/分類依然存在於目前的 Prop 清單入面，防止出錯
+    if (lastMember && members.some(m => m.id.toString() === lastMember)) {
+      onMemberChange({ target: { value: lastMember } });
+    }
+    if (lastMainCat && Object.keys(categories).includes(lastMainCat)) {
+      onMainCatChange({ target: { value: lastMainCat } });
+      
+      // 等主分類變更完，如果子分類存在，就一併順埋過去
+      if (lastSubCat && categories[lastMainCat]?.includes(lastSubCat)) {
+        // 稍微延遲少少確保 State 同步
+        setTimeout(() => {
+          onSubCatChange({ target: { value: lastSubCat } });
+        }, 50);
+      }
+    }
+  }, [members, categories]);
+
+  // 🧠 核心記憶功能二：包裝原本的提交事件，當用家點擊「儲存」加完錢，即刻寫入記憶
+  const handleAddExpenseWithMemory = (e) => {
+    e.preventDefault();
+    
+    // 記住呢一刻揀咗嘅名、主分類、子分類
+    localStorage.setItem('last_expense_member_id', selectedMember);
+    localStorage.setItem('last_expense_main_cat', mainCat);
+    localStorage.setItem('last_expense_sub_cat', subCat);
+
+    // 執行原本父組件傳過嚟嘅新增記帳邏輯
+    onAddExpense(e);
+  };
 
   const filteredRecords = useMemo(() => {
     return records.filter(rec => {
@@ -200,8 +236,8 @@ export default function MainTab({
 
   return (
     <>
-      {/* 記帳表單區塊 */}
-      <S.Form onSubmit={onAddExpense} style={{ gap: '5px', marginTop: '0' }}>
+      {/* 記帳表單區塊：🌟 已換成帶有記憶功能的 handleAddExpenseWithMemory */}
+      <S.Form onSubmit={handleAddExpenseWithMemory} style={{ gap: '5px', marginTop: '0' }}>
         
         {/* 金額大字欄位 */}
         <S.InputAmount
@@ -216,7 +252,7 @@ export default function MainTab({
           inputMode="decimal"
         />
 
-        {/* 第一行：成員 + 主分類 + 子分類 */}
+        {/* 第一行：成員 + 主分類 + 子分類 (一開機會自動選好上次選過嘅項目) */}
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '5px', width: '100%' }}>
           <S.Select
             value={selectedMember}
@@ -339,10 +375,7 @@ export default function MainTab({
           </div>
 
           {(showCustomDateTime || isCustomTimeActive) && (
-            /* 💡 修正點一：強制 Date 與 Time Input 綁定在同一個橫排一行過 (One Row Flex) */
             <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '5px', width: '100%' }}>
-              
-              {/* 日期選擇：🔒 加密防打字 + 💡 撳框內任何一處都會直覺彈出 Dropdown */}
               <S.TextInput
                 name="expenseDate"
                 type="date"
@@ -350,11 +383,10 @@ export default function MainTab({
                 value={expenseForm.expenseDate || ''}
                 onChange={onExpenseInput}
                 onKeyDown={(e) => e.preventDefault()} 
-                onClick={(e) => e.target.showPicker?.()} /* 🌟 核心：撳任何地方即 popup 選擇器 */
+                onClick={(e) => e.target.showPicker?.()} 
                 style={{ padding: '6px 10px', fontSize: '11px', borderRadius: '8px', height: '34px', color: '#fff', background: '#0b0f18', border: '1px solid rgba(255,255,255,0.06)', flex: 1, minWidth: 0, width: '100%', cursor: 'pointer' }}
               />
 
-              {/* 時間選擇：🔒 加密防打字 + 💡 撳框內任何一處都會直覺彈出 Dropdown */}
               <S.TextInput
                 name="expenseTime"
                 type="time"
@@ -362,10 +394,9 @@ export default function MainTab({
                 value={expenseForm.expenseTime || ''}
                 onChange={onExpenseInput}
                 onKeyDown={(e) => e.preventDefault()} 
-                onClick={(e) => e.target.showPicker?.()} /* 🌟 核心：撳任何地方即 popup 選擇器 */
+                onClick={(e) => e.target.showPicker?.()} 
                 style={{ padding: '6px 10px', fontSize: '11px', borderRadius: '8px', height: '34px', color: '#fff', background: '#0b0f18', border: '1px solid rgba(255,255,255,0.06)', flex: 1, minWidth: 0, width: '100%', cursor: 'pointer' }}
               />
-
             </div>
           )}
         </div>
@@ -399,7 +430,7 @@ export default function MainTab({
             <S.TotalText style={{ fontSize: '26px', fontWeight: '700', color: '#fff', letterSpacing: '-0.02em' }}>{formatCurrency(monthlyStats.total)}</S.TotalText>
           </S.TotalBlock>
 
-          {/* 📅 7欄極限等字體月曆 */}
+          {/* 📅 7欄極簡等字體月曆 */}
           <S.StatsCard style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.04)', padding: '10px 4px', borderRadius: '14px' }}>
             <S.StatsCardTitle style={{ fontSize: '11px', color: '#5c6679', marginBottom: '10px', fontWeight: '500', paddingLeft: '4px' }}>月度日期分佈 (顏色愈紅代表消費愈高)</S.StatsCardTitle>
             
@@ -430,7 +461,7 @@ export default function MainTab({
 
                 return (
                   <S.CalendarCell key={idx} active={hasTotal} style={{ 
-                    minHeight: '52px', /* 🌟 稍微拉高少少，配合 14px 字體 */
+                    minHeight: '52px', 
                     padding: '4px 1px', 
                     borderRadius: '6px', 
                     background: hasTotal ? 'rgba(255, 255, 255, 0.02)' : 'transparent', 
@@ -448,13 +479,13 @@ export default function MainTab({
                         {hasTotal ? (
                           <S.CalendarAmount style={{ 
                             color: textColor,
-                            fontSize: '14px', /* 👈 🌟 應你要求：由 10px 暴力放大到 14px */
+                            fontSize: '14px', 
                             fontWeight: fontWeight,
                             width: '100%', 
                             textAlign: 'center', 
                             overflow: 'hidden', 
                             whiteSpace: 'nowrap',
-                            letterSpacing: '-0.04em', /* 🌟 稍微收緊字距，防止 14px 大字切斷 */
+                            letterSpacing: '-0.04em', 
                             fontFamily: 'monospace'
                           }}>
                             {formatCompactAmount(total)}
