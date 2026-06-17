@@ -23,6 +23,23 @@ export default function MainTab({
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
+  const [showCustomDateTime, setShowCustomDateTime] = useState(false);
+
+  // 🔒 動態獲取當前最新的「今天」與「現在時間」限制未來
+  const { maxDate, maxTime } = useMemo(() => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    
+    return {
+      maxDate: `${yyyy}-${mm}-${dd}`,
+      maxTime: `${hh}:${min}`
+    };
+  }, [expenseForm.expenseDate]);
+
   const filteredRecords = useMemo(() => {
     return records.filter(rec => {
       const recDate = new Date(rec.created_at);
@@ -142,7 +159,6 @@ export default function MainTab({
 
   const getTotalForDate = (dateStr) => dailyExpenses[dateStr] || 0;
 
-  // 7 欄極限防爆縮寫演算法
   const formatCompactAmount = (amount) => {
     if (!amount) return '';
     if (amount >= 100000) {
@@ -174,10 +190,20 @@ export default function MainTab({
   const calendarDays = getCalendarDays();
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
 
+  const isCustomTimeActive = Boolean(expenseForm.expenseDate || expenseForm.expenseTime);
+
+  const handleResetToCurrentTime = () => {
+    onExpenseInput({ target: { name: 'expenseDate', value: '' } });
+    onExpenseInput({ target: { name: 'expenseTime', value: '' } });
+    setShowCustomDateTime(false);
+  };
+
   return (
     <>
-      {/* 記帳密實表單區塊 */}
-      <S.Form onSubmit={onAddExpense} style={{ gap: '6px', marginTop: '0' }}>
+      {/* 記帳表單區塊 */}
+      <S.Form onSubmit={onAddExpense} style={{ gap: '5px', marginTop: '0' }}>
+        
+        {/* 金額大字欄位 */}
         <S.InputAmount
           name="amount"
           type="number"
@@ -190,11 +216,24 @@ export default function MainTab({
           inputMode="decimal"
         />
 
-        <S.ResponsiveRow style={{ gap: '6px' }}>
+        {/* 第一行：成員 + 主分類 + 子分類 */}
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '5px', width: '100%' }}>
           <S.Select
             value={selectedMember}
             onChange={onMemberChange}
-            style={{ color: currentMember.color, padding: '8px 10px', fontSize: '13px', borderRadius: '8px', height: '34px', background: '#0b0f18' }}
+            style={{ 
+              color: currentMember.color, 
+              padding: '6px 8px', 
+              fontSize: '12px', 
+              borderRadius: '8px', 
+              height: '34px', 
+              background: '#0b0f18',
+              border: '1px solid rgba(255,255,255,0.04)',
+              fontWeight: '600',
+              flex: '1 1 33%',
+              minWidth: 0,
+              width: '100%'
+            }}
           >
             {members.map((member) => (
               <option key={member.id} value={member.id.toString()}>
@@ -203,7 +242,11 @@ export default function MainTab({
             ))}
           </S.Select>
 
-          <S.Select value={mainCat} onChange={onMainCatChange} style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '8px', height: '34px', background: '#0b0f18' }}>
+          <S.Select 
+            value={mainCat} 
+            onChange={onMainCatChange} 
+            style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', height: '34px', background: '#0b0f18', border: '1px solid rgba(255,255,255,0.04)', color: '#fff', flex: '1 1 33%', minWidth: 0, width: '100%' }}
+          >
             {Object.keys(categories).map((category) => (
               <option key={category} value={category}>
                 {category}
@@ -211,52 +254,140 @@ export default function MainTab({
             ))}
           </S.Select>
 
-          <S.Select value={subCat} onChange={onSubCatChange} style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '8px', height: '34px', background: '#0b0f18' }}>
+          <S.Select 
+            value={subCat} 
+            onChange={onSubCatChange} 
+            style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', height: '34px', background: '#0b0f18', border: '1px solid rgba(255,255,255,0.04)', color: '#a6aec7', flex: '1 1 33%', minWidth: 0, width: '100%' }}
+          >
             {categories[mainCat]?.map((subcategory) => (
               <option key={subcategory} value={subcategory}>
                 {subcategory}
               </option>
             ))}
           </S.Select>
-        </S.ResponsiveRow>
+        </div>
 
-        <S.Row style={{ gap: '6px' }}>
+        {/* 第二行：備忘錄 + 儲存按鈕 */}
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '5px', width: '100%', alignItems: 'center' }}>
           <S.TextInput
             name="note"
             type="text"
-            placeholder="輸入備忘備註..."
+            placeholder="備忘 (如: 壽司, 巴士)..."
             value={expenseForm.note}
             onChange={onExpenseInput}
-            style={{ padding: '8px 12px', fontSize: '13px', borderRadius: '8px', height: '34px' }}
+            style={{ 
+              padding: '8px 12px', 
+              fontSize: '12px', 
+              borderRadius: '8px', 
+              height: '34px', 
+              border: '1px solid rgba(255,255,255,0.04)',
+              flex: '1',      
+              minWidth: '0',  
+              width: '100%'
+            }}
           />
-          <S.Button type="submit" style={{ minHeight: '34px', height: '34px', padding: '0 16px', borderRadius: '8px', fontSize: '16px', background: 'rgba(255,255,255,0.06)' }}>
-            ＋
+          <S.Button 
+            type="submit" 
+            style={{ 
+              minHeight: '34px', 
+              height: '34px', 
+              borderRadius: '8px', 
+              fontSize: '13px', 
+              background: '#fff', 
+              color: '#000', 
+              fontWeight: '700',
+              border: 'none',
+              flex: '0 0 65px', 
+              width: '65px',    
+              padding: '0',
+              textAlign: 'center'
+            }}
+          >
+            儲存
           </S.Button>
-        </S.Row>
+        </div>
 
-        <S.DateTimeRow style={{ gap: '6px', marginTop: '0' }}>
-          <S.TextInput
-            name="expenseDate"
-            type="date"
-            value={expenseForm.expenseDate || ''}
-            onChange={onExpenseInput}
-            style={{ padding: '6px 10px', fontSize: '11px', borderRadius: '6px', height: '28px', color: '#67718a' }}
-          />
-          <S.TextInput
-            name="expenseTime"
-            type="time"
-            value={expenseForm.expenseTime || ''}
-            onChange={onExpenseInput}
-            style={{ padding: '6px 10px', fontSize: '11px', borderRadius: '6px', height: '28px', color: '#67718a' }}
-          />
-        </S.DateTimeRow>
+        {/* 日期時間快捷與自定義選單 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <S.QuickDateTimeBadge
+              type="button"
+              isCustom={isCustomTimeActive}
+              onClick={() => setShowCustomDateTime(!showCustomDateTime)}
+            >
+              <span style={{ fontSize: '8px', color: isCustomTimeActive ? '#ff8aa5' : '#34d399' }}>●</span>
+              {isCustomTimeActive ? '已補錄過去歷史帳目' : '現在時間 (點擊補填舊帳)'}
+            </S.QuickDateTimeBadge>
+
+            {isCustomTimeActive && (
+              <button
+                type="button"
+                onClick={handleResetToCurrentTime}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  color: '#e5e7eb',
+                  fontSize: '11px',
+                  borderRadius: '12px',
+                  padding: '4px 10px',
+                  cursor: 'pointer'
+                }}
+              >
+                ✕ 還原現在
+              </button>
+            )}
+          </div>
+
+          {(showCustomDateTime || isCustomTimeActive) && (
+            /* 💡 修正點一：強制 Date 與 Time Input 綁定在同一個橫排一行過 (One Row Flex) */
+            <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '5px', width: '100%' }}>
+              
+              {/* 日期選擇：🔒 加密防打字 + 💡 撳框內任何一處都會直覺彈出 Dropdown */}
+              <S.TextInput
+                name="expenseDate"
+                type="date"
+                max={maxDate}
+                value={expenseForm.expenseDate || ''}
+                onChange={onExpenseInput}
+                onKeyDown={(e) => e.preventDefault()} 
+                onClick={(e) => e.target.showPicker?.()} /* 🌟 核心：撳任何地方即 popup 選擇器 */
+                style={{ padding: '6px 10px', fontSize: '11px', borderRadius: '8px', height: '34px', color: '#fff', background: '#0b0f18', border: '1px solid rgba(255,255,255,0.06)', flex: 1, minWidth: 0, width: '100%', cursor: 'pointer' }}
+              />
+
+              {/* 時間選擇：🔒 加密防打字 + 💡 撳框內任何一處都會直覺彈出 Dropdown */}
+              <S.TextInput
+                name="expenseTime"
+                type="time"
+                max={expenseForm.expenseDate === maxDate ? maxTime : undefined}
+                value={expenseForm.expenseTime || ''}
+                onChange={onExpenseInput}
+                onKeyDown={(e) => e.preventDefault()} 
+                onClick={(e) => e.target.showPicker?.()} /* 🌟 核心：撳任何地方即 popup 選擇器 */
+                style={{ padding: '6px 10px', fontSize: '11px', borderRadius: '8px', height: '34px', color: '#fff', background: '#0b0f18', border: '1px solid rgba(255,255,255,0.06)', flex: 1, minWidth: 0, width: '100%', cursor: 'pointer' }}
+              />
+
+            </div>
+          )}
+        </div>
       </S.Form>
 
       {/* 月份導航 */}
-      <S.MonthNav style={{ marginTop: '14px', marginBottom: '8px', gap: '8px' }}>
-        <button onClick={handlePrevMonth} style={{ background: 'none', border: 'none', color: '#67718a', fontSize: '12px', cursor: 'pointer' }}>◀ 前月</button>
-        <S.MonthLabel style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>{monthLabel}</S.MonthLabel>
-        <button onClick={handleNextMonth} style={{ background: 'none', border: 'none', color: '#67718a', fontSize: '12px', cursor: 'pointer' }}>後月 ▶</button>
+      <S.MonthNav style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', marginBottom: '8px', gap: '8px', width: '100%' }}>
+        <button 
+          onClick={handlePrevMonth} 
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', color: '#67718a', fontSize: '12px', padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          ◀ 前月
+        </button>
+        <S.MonthLabel style={{ fontSize: '13px', fontWeight: '600', color: '#fff', whiteSpace: 'nowrap', textAlign: 'center', flex: 1 }}>
+          {monthLabel}
+        </S.MonthLabel>
+        <button 
+          onClick={handleNextMonth} 
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', color: '#67718a', fontSize: '12px', padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          後月 ▶
+        </button>
       </S.MonthNav>
 
       {filteredRecords.length > 0 ? (
@@ -269,7 +400,7 @@ export default function MainTab({
           </S.TotalBlock>
 
           {/* 📅 7欄極限等字體月曆 */}
-          <S.StatsCard style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.04)', padding: '10px 6px', borderRadius: '14px' }}>
+          <S.StatsCard style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.04)', padding: '10px 4px', borderRadius: '14px' }}>
             <S.StatsCardTitle style={{ fontSize: '11px', color: '#5c6679', marginBottom: '10px', fontWeight: '500', paddingLeft: '4px' }}>月度日期分佈 (顏色愈紅代表消費愈高)</S.StatsCardTitle>
             
             <S.CalendarHeader>
@@ -284,26 +415,23 @@ export default function MainTab({
                 const total = dateStr ? getTotalForDate(dateStr) : 0;
                 const hasTotal = total > 0;
                 
-                // 🔴 智能等大小動態變色演算法 (字體死死鎖定在 10px，純靠顏色轉變)
                 let textColor = '#e5e7eb';
                 let fontWeight = '500';
                 
                 if (hasTotal && maxDailyExpense > 0) {
                   const ratio = Math.min(total / maxDailyExpense, 1);
-                  
-                  // 顏色漸變：由普通淡白 (#e5e7eb) -> 動態橫跨到精緻極簡鮮紅 (#ff4d4d)
                   const r = Math.round(229 + (26 * ratio)); 
                   const g = Math.round(231 - (154 * ratio)); 
                   const b = Math.round(235 - (158 * ratio)); 
                   
                   textColor = `rgb(${r}, ${g}, ${b})`;
-                  fontWeight = ratio > 0.4 ? '700' : '600'; // 消費較高時加粗字體增强對比
+                  fontWeight = ratio > 0.4 ? '700' : '600';
                 }
 
                 return (
                   <S.CalendarCell key={idx} active={hasTotal} style={{ 
-                    minHeight: '48px', 
-                    padding: '4px 2px', 
+                    minHeight: '52px', /* 🌟 稍微拉高少少，配合 14px 字體 */
+                    padding: '4px 1px', 
                     borderRadius: '6px', 
                     background: hasTotal ? 'rgba(255, 255, 255, 0.02)' : 'transparent', 
                     border: hasTotal ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(255,255,255,0.01)',
@@ -320,13 +448,13 @@ export default function MainTab({
                         {hasTotal ? (
                           <S.CalendarAmount style={{ 
                             color: textColor,
-                            fontSize: '14px', /* 👈 嚴格固定 10px 字體大小 */
+                            fontSize: '14px', /* 👈 🌟 應你要求：由 10px 暴力放大到 14px */
                             fontWeight: fontWeight,
                             width: '100%', 
                             textAlign: 'center', 
                             overflow: 'hidden', 
                             whiteSpace: 'nowrap',
-                            letterSpacing: '-0.03em',
+                            letterSpacing: '-0.04em', /* 🌟 稍微收緊字距，防止 14px 大字切斷 */
                             fontFamily: 'monospace'
                           }}>
                             {formatCompactAmount(total)}
@@ -344,7 +472,6 @@ export default function MainTab({
           <S.StatsCard style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.04)', padding: '12px', borderRadius: '14px' }}>
             <S.StatsCardTitle style={{ fontSize: '11px', color: '#5c6679', marginBottom: '8px', fontWeight: '500' }}>成員 × 分類消耗</S.StatsCardTitle>
             
-            {/* 分類顏色全域圖例 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', marginBottom: '14px', padding: '6px 8px', background: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
               {memberCategoryStats.categories.map((cat, catIdx) => (
                 <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>

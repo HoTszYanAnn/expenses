@@ -314,14 +314,12 @@ export const MonthNav = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 20px;
-  margin-bottom: 12px;
+  margin-top: 14px;
+  margin-bottom: 8px;
   gap: 12px;
-
-  @media (max-width: 520px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  width: 100%;
+  flex-direction: row; /* 📱 夾死橫向，不准換行！ */
+  flex-wrap: nowrap !important; 
 `;
 
 export const MonthButton = styled(Button)`
@@ -851,4 +849,23 @@ export const Divider = styled.hr`
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   margin: 20px 0;
   width: 100%;
+`;
+export const QuickDateTimeBadge = styled.button`
+  background: ${props => props.isCustom ? 'rgba(248, 138, 165, 0.12)' : 'rgba(255, 255, 255, 0.03)'};
+  border: 1px solid ${props => props.isCustom ? 'rgba(248, 138, 165, 0.3)' : 'rgba(255, 255, 255, 0.05)'};
+  color: ${props => props.isCustom ? '#ff8aa5' : '#8a94aa'};
+  padding: 6px 12px;
+  font-size: 11px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  transition: all 0.2s ease;
+  font-weight: 500;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
 `;
