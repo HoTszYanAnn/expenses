@@ -13,7 +13,7 @@ import DetailsTab from './DetailsTab.jsx';
 import SettingsTab from './SettingsTab.jsx';
 
 const initialExpenseForm = { amount: '', note: '', expenseDate: '', expenseTime: '' };
-const initialSettingsForm = { newMemberName: '', newMemberColor: '#ffffff', newMainCat: '', newSubCat: '' };
+const initialSettingsForm = { newMemberName: '', newMemberColor: '#ffffff', selectedMainCat: '', newMainCat: '', newSubCat: '' };
 
 export default function ExpenseTracker() {
   const [view, setView] = useState('main');
@@ -107,7 +107,16 @@ export default function ExpenseTracker() {
 
   const handleSettingsInput = (event) => {
     const { name, value } = event.target;
-    setSettingsForm(prev => ({ ...prev, [name]: value }));
+    setSettingsForm((prev) => {
+      if (name === 'selectedMainCat') {
+        return {
+          ...prev,
+          selectedMainCat: value,
+          newMainCat: value ? '' : prev.newMainCat,
+        };
+      }
+      return { ...prev, [name]: value };
+    });
   };
 
   const handleAddExpense = async (event) => {
@@ -169,14 +178,37 @@ export default function ExpenseTracker() {
 
   const handleAddCategory = async (event) => {
     event.preventDefault();
-    if (!settingsForm.newMainCat || !settingsForm.newSubCat) return;
+    const mainCategory = (settingsForm.selectedMainCat || settingsForm.newMainCat || '').trim();
+    const subCategory = (settingsForm.newSubCat || '').trim();
+
+    if (!mainCategory) {
+      window.alert('請選擇或輸入主分類，然後再送出。');
+      return;
+    }
+    if (!subCategory) {
+      window.alert('請輸入子分類。');
+      return;
+    }
+
+    const duplicate = rawCategories.some(
+      (category) => category.main_category === mainCategory && category.sub_category === subCategory
+    );
+    if (duplicate) {
+      window.alert('此主分類與子分類組合已存在，請改用其他名稱。');
+      return;
+    }
 
     const { error } = await supabase
       .from('categories')
-      .insert([{ main_category: settingsForm.newMainCat, sub_category: settingsForm.newSubCat }]);
+      .insert([{ main_category: mainCategory, sub_category: subCategory }]);
 
     if (!error) {
-      setSettingsForm(prev => ({ ...prev, newMainCat: '', newSubCat: '' }));
+      setSettingsForm((prev) => ({
+        ...prev,
+        selectedMainCat: '',
+        newMainCat: '',
+        newSubCat: '',
+      }));
       await reloadCategories();
     }
   };
