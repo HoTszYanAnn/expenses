@@ -320,7 +320,7 @@ export default function MainTab({
                         {hasTotal ? (
                           <S.CalendarAmount style={{ 
                             color: textColor,
-                            fontSize: '10px', /* 👈 嚴格固定 10px 字體大小 */
+                            fontSize: '14px', /* 👈 嚴格固定 10px 字體大小 */
                             fontWeight: fontWeight,
                             width: '100%', 
                             textAlign: 'center', 
