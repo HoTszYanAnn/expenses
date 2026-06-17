@@ -82,62 +82,23 @@ export default function MainTab({
     month: 'long',
   });
 
-  // Helper to adjust color opacity
-  const getColorWithOpacity = (hexColor, opacity) => {
-    const hex = hexColor.replace('#', '');
+  const minimalColors = ['#f88aa5', '#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#22d3ee', '#e2e8f0'];
+
+  const getCategoryColor = (index, opacity = 1) => {
+    const hex = minimalColors[index % minimalColors.length].replace('#', '');
     const r = parseInt(hex.substring(0, 2), 16);
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
 
-  // Helper to get member who spent on a date
-  const getMemberColorForDate = (dateStr) => {
-    const dayRecords = filteredRecords.filter(rec => {
-      const recDate = new Date(rec.created_at).toISOString().split('T')[0];
-      return recDate === dateStr;
-    });
-    if (dayRecords.length === 0) return null;
-    const member = members.find(m => m.id === dayRecords[0].member_id);
-    return member?.color || '#ffffff';
-  };
-
-  // Get all members' spending for a specific date
-  const getMembersSpendingForDate = (dateStr) => {
-    const dayRecords = filteredRecords.filter(rec => {
-      const recDate = new Date(rec.created_at).toISOString().split('T')[0];
-      return recDate === dateStr;
-    });
-
-    const memberSpending = {};
-    dayRecords.forEach(rec => {
-      if (!memberSpending[rec.member_id]) {
-        memberSpending[rec.member_id] = 0;
-      }
-      memberSpending[rec.member_id] += Number(rec.amount || 0);
-    });
-
-    return members
-      .filter(m => memberSpending[m.id] > 0)
-      .map(m => ({
-        memberId: m.id,
-        memberName: m.name,
-        memberColor: m.color,
-        amount: memberSpending[m.id],
-      }))
-      .sort((a, b) => b.amount - a.amount);
-  };
-
-  // Calculate member × category breakdown for stacked bar chart
   const memberCategoryStats = useMemo(() => {
-    // First get all unique categories from filtered records
     const categorySet = new Set();
     filteredRecords.forEach(rec => {
       categorySet.add(rec.main_category || '未分類');
     });
     const categoryList = Array.from(categorySet).sort();
 
-    // Then calculate spending per member per category
     const stats = members.map(member => {
       const categoryBreakdown = {};
       let totalAmount = 0;
@@ -166,7 +127,6 @@ export default function MainTab({
     return { stats, categories: categoryList };
   }, [filteredRecords, members]);
 
-  // Calculate daily expenses for calendar
   const dailyExpenses = useMemo(() => {
     const daily = {};
     filteredRecords.forEach(rec => {
@@ -176,7 +136,24 @@ export default function MainTab({
     return daily;
   }, [filteredRecords]);
 
-  // Generate calendar days
+  const maxDailyExpense = useMemo(() => {
+    return Math.max(0, ...Object.values(dailyExpenses));
+  }, [dailyExpenses]);
+
+  const getTotalForDate = (dateStr) => dailyExpenses[dateStr] || 0;
+
+  // 7 欄極限防爆縮寫演算法
+  const formatCompactAmount = (amount) => {
+    if (!amount) return '';
+    if (amount >= 100000) {
+      return `${(amount / 1000).toFixed(0)}k`;
+    }
+    if (amount >= 1000) {
+      return `${(amount / 1000).toFixed(1)}k`.replace('.0', '');
+    }
+    return Math.round(amount).toString();
+  };
+
   const getCalendarDays = () => {
     const [year, month] = selectedMonth.split('-');
     const firstDay = new Date(Number(year), Number(month) - 1, 1);
@@ -185,11 +162,9 @@ export default function MainTab({
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    // Add empty cells for days before month starts
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-    // Add actual days
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(day);
     }
@@ -197,10 +172,12 @@ export default function MainTab({
   };
 
   const calendarDays = getCalendarDays();
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+
   return (
     <>
-      <S.Form onSubmit={onAddExpense}>
+      {/* 記帳密實表單區塊 */}
+      <S.Form onSubmit={onAddExpense} style={{ gap: '6px', marginTop: '0' }}>
         <S.InputAmount
           name="amount"
           type="number"
@@ -210,13 +187,14 @@ export default function MainTab({
           onChange={onExpenseInput}
           required
           autoFocus
+          inputMode="decimal"
         />
 
-        <S.ResponsiveRow>
+        <S.ResponsiveRow style={{ gap: '6px' }}>
           <S.Select
             value={selectedMember}
             onChange={onMemberChange}
-            style={{ color: currentMember.color }}
+            style={{ color: currentMember.color, padding: '8px 10px', fontSize: '13px', borderRadius: '8px', height: '34px', background: '#0b0f18' }}
           >
             {members.map((member) => (
               <option key={member.id} value={member.id.toString()}>
@@ -225,7 +203,7 @@ export default function MainTab({
             ))}
           </S.Select>
 
-          <S.Select value={mainCat} onChange={onMainCatChange}>
+          <S.Select value={mainCat} onChange={onMainCatChange} style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '8px', height: '34px', background: '#0b0f18' }}>
             {Object.keys(categories).map((category) => (
               <option key={category} value={category}>
                 {category}
@@ -233,7 +211,7 @@ export default function MainTab({
             ))}
           </S.Select>
 
-          <S.Select value={subCat} onChange={onSubCatChange}>
+          <S.Select value={subCat} onChange={onSubCatChange} style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '8px', height: '34px', background: '#0b0f18' }}>
             {categories[mainCat]?.map((subcategory) => (
               <option key={subcategory} value={subcategory}>
                 {subcategory}
@@ -242,222 +220,186 @@ export default function MainTab({
           </S.Select>
         </S.ResponsiveRow>
 
-        <S.Row>
+        <S.Row style={{ gap: '6px' }}>
           <S.TextInput
             name="note"
             type="text"
-            placeholder="備忘..."
+            placeholder="輸入備忘備註..."
             value={expenseForm.note}
             onChange={onExpenseInput}
+            style={{ padding: '8px 12px', fontSize: '13px', borderRadius: '8px', height: '34px' }}
           />
-          <S.Button type="submit">＋</S.Button>
+          <S.Button type="submit" style={{ minHeight: '34px', height: '34px', padding: '0 16px', borderRadius: '8px', fontSize: '16px', background: 'rgba(255,255,255,0.06)' }}>
+            ＋
+          </S.Button>
         </S.Row>
 
-        {/* Date & Time Inputs */}
-        <S.ResponsiveRow style={{ marginTop: '8px', gap: '4px' }}>
+        <S.DateTimeRow style={{ gap: '6px', marginTop: '0' }}>
           <S.TextInput
             name="expenseDate"
             type="date"
             value={expenseForm.expenseDate || ''}
             onChange={onExpenseInput}
-            title="Edit expense date (optional)"
+            style={{ padding: '6px 10px', fontSize: '11px', borderRadius: '6px', height: '28px', color: '#67718a' }}
           />
           <S.TextInput
             name="expenseTime"
             type="time"
             value={expenseForm.expenseTime || ''}
             onChange={onExpenseInput}
-            title="Edit expense time (optional)"
+            style={{ padding: '6px 10px', fontSize: '11px', borderRadius: '6px', height: '28px', color: '#67718a' }}
           />
-        </S.ResponsiveRow>
+        </S.DateTimeRow>
       </S.Form>
 
-      {/* Month Navigation */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', marginBottom: '12px' }}>
-        <button
-          onClick={handlePrevMonth}
-          style={{
-            background: '#050505',
-            color: '#fff',
-            border: '1px solid #222',
-            padding: '8px 12px',
-            cursor: 'pointer',
-            borderRadius: '4px',
-            fontSize: '12px',
-          }}
-        >
-          ← 前月
-        </button>
-        <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>{monthLabel}</span>
-        <button
-          onClick={handleNextMonth}
-          style={{
-            background: '#050505',
-            color: '#fff',
-            border: '1px solid #222',
-            padding: '8px 12px',
-            cursor: 'pointer',
-            borderRadius: '4px',
-            fontSize: '12px',
-          }}
-        >
-          後月 →
-        </button>
-      </div>
+      {/* 月份導航 */}
+      <S.MonthNav style={{ marginTop: '14px', marginBottom: '8px', gap: '8px' }}>
+        <button onClick={handlePrevMonth} style={{ background: 'none', border: 'none', color: '#67718a', fontSize: '12px', cursor: 'pointer' }}>◀ 前月</button>
+        <S.MonthLabel style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>{monthLabel}</S.MonthLabel>
+        <button onClick={handleNextMonth} style={{ background: 'none', border: 'none', color: '#67718a', fontSize: '12px', cursor: 'pointer' }}>後月 ▶</button>
+      </S.MonthNav>
 
       {filteredRecords.length > 0 ? (
-        <S.StatsContainer>
-          <S.TotalBlock>
-            <S.StatsLabel>{monthLabel} 支出總計</S.StatsLabel>
-            <S.TotalText>{formatCurrency(monthlyStats.total)}</S.TotalText>
+        <S.StatsContainer style={{ marginTop: '0', gap: '10px' }}>
+          
+          {/* 本月支出總計 */}
+          <S.TotalBlock style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '14px', borderRadius: '14px', textAlign: 'center', gap: '2px' }}>
+            <S.StatsLabel style={{ fontSize: '11px', color: '#5c6679', letterSpacing: '0.05em' }}>本月支出總計</S.StatsLabel>
+            <S.TotalText style={{ fontSize: '26px', fontWeight: '700', color: '#fff', letterSpacing: '-0.02em' }}>{formatCurrency(monthlyStats.total)}</S.TotalText>
           </S.TotalBlock>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Calendar - 100% width */}
-            <S.StatsCard>
-              <S.StatsCardTitle>日期分佈</S.StatsCardTitle>
-              {/* Weekday Headers */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', marginBottom: '8px' }}>
-                {weekDays.map(day => (
-                  <div
-                    key={day}
-                    style={{
-                      textAlign: 'center',
-                      fontSize: '10px',
-                      color: '#666',
-                      fontWeight: 'bold',
-                      paddingBottom: '4px',
-                      borderBottom: '1px solid #1a1a1a',
-                    }}
-                  >
-                    {day}
-                  </div>
-                ))}
-              </div>
-              {/* Calendar Days */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
-                {calendarDays.map((day, idx) => {
-                  const dateStr = day ? `${selectedMonth}-${String(day).padStart(2, '0')}` : null;
-                  const membersSpent = dateStr ? getMembersSpendingForDate(dateStr) : [];
-                  return (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        justifyContent: 'flex-start',
-                        backgroundColor: '#050505',
-                        borderLeft: membersSpent.length > 0 ? `3px solid ${membersSpent[0].memberColor}` : '3px solid transparent',
-                        borderRadius: '4px',
-                        padding: '8px 6px',
-                        cursor: day ? 'pointer' : 'default',
-                        fontSize: '12px',
-                        color: membersSpent.length > 0 ? '#fff' : '#444',
-                        transition: 'all 0.2s',
-                        minHeight: membersSpent.length > 0 ? 'auto' : '48px',
-                        border: membersSpent.length > 0 ? `1px solid #222` : `1px solid #1a1a1a`,
-                        opacity: membersSpent.length > 0 ? 1 : 0.5,
-                      }}
-                    >
-                      {day ? (
-                        <>
-                          <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '4px', lineHeight: '1' }}>
-                            {day}
-                          </div>
-                          {membersSpent.length > 0 ? (
-                            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              {membersSpent.map((member) => (
-                                <div
-                                  key={member.memberId}
-                                  style={{
-                                    fontSize: '10px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
-                                  }}
-                                >
-                                  <span style={{ color: member.memberColor, fontSize: '6px', fontWeight: 'bold' }}>●</span>
-                                  <span style={{ color: member.memberColor, fontWeight: 'bold' }}>
-                                    ${member.amount.toFixed(1)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: '8px', color: '#555' }}>
-                              —
-                            </div>
-                          )}
-                        </>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </S.StatsCard>
+          {/* 📅 7欄極限等字體月曆 */}
+          <S.StatsCard style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.04)', padding: '10px 6px', borderRadius: '14px' }}>
+            <S.StatsCardTitle style={{ fontSize: '11px', color: '#5c6679', marginBottom: '10px', fontWeight: '500', paddingLeft: '4px' }}>月度日期分佈 (顏色愈紅代表消費愈高)</S.StatsCardTitle>
+            
+            <S.CalendarHeader>
+              {weekDays.map(day => (
+                <S.CalendarHeaderCell key={day}>{day}</S.CalendarHeaderCell>
+              ))}
+            </S.CalendarHeader>
 
-            {/* Stacked Bar Chart - 100% width below */}
-            <S.StatsCard>
-              <S.StatsCardTitle>成員 × 分類消耗</S.StatsCardTitle>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {memberCategoryStats.stats.map((member) => (
-                  <div key={member.memberId}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ color: member.memberColor, fontWeight: 'bold', fontSize: '12px' }}>
-                        {member.memberName}
-                      </span>
-                      <span style={{ color: '#aaa', fontSize: '11px' }}>
-                        {formatCurrency(member.totalAmount, 0)}
-                      </span>
+            <S.CalendarGrid>
+              {calendarDays.map((day, idx) => {
+                const dateStr = day ? `${selectedMonth}-${String(day).padStart(2, '0')}` : null;
+                const total = dateStr ? getTotalForDate(dateStr) : 0;
+                const hasTotal = total > 0;
+                
+                // 🔴 智能等大小動態變色演算法 (字體死死鎖定在 10px，純靠顏色轉變)
+                let textColor = '#e5e7eb';
+                let fontWeight = '500';
+                
+                if (hasTotal && maxDailyExpense > 0) {
+                  const ratio = Math.min(total / maxDailyExpense, 1);
+                  
+                  // 顏色漸變：由普通淡白 (#e5e7eb) -> 動態橫跨到精緻極簡鮮紅 (#ff4d4d)
+                  const r = Math.round(229 + (26 * ratio)); 
+                  const g = Math.round(231 - (154 * ratio)); 
+                  const b = Math.round(235 - (158 * ratio)); 
+                  
+                  textColor = `rgb(${r}, ${g}, ${b})`;
+                  fontWeight = ratio > 0.4 ? '700' : '600'; // 消費較高時加粗字體增强對比
+                }
+
+                return (
+                  <S.CalendarCell key={idx} active={hasTotal} style={{ 
+                    minHeight: '48px', 
+                    padding: '4px 2px', 
+                    borderRadius: '6px', 
+                    background: hasTotal ? 'rgba(255, 255, 255, 0.02)' : 'transparent', 
+                    border: hasTotal ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(255,255,255,0.01)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    {day ? (
+                      <>
+                        <S.CalendarDayNumber style={{ fontSize: '9px', color: hasTotal ? '#8a94aa' : '#4b5563' }}>
+                          {day}
+                        </S.CalendarDayNumber>
+                        {hasTotal ? (
+                          <S.CalendarAmount style={{ 
+                            color: textColor,
+                            fontSize: '10px', /* 👈 嚴格固定 10px 字體大小 */
+                            fontWeight: fontWeight,
+                            width: '100%', 
+                            textAlign: 'center', 
+                            overflow: 'hidden', 
+                            whiteSpace: 'nowrap',
+                            letterSpacing: '-0.03em',
+                            fontFamily: 'monospace'
+                          }}>
+                            {formatCompactAmount(total)}
+                          </S.CalendarAmount>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </S.CalendarCell>
+                );
+              })}
+            </S.CalendarGrid>
+          </S.StatsCard>
+
+          {/* 📊 成員 × 分類消耗 */}
+          <S.StatsCard style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.04)', padding: '12px', borderRadius: '14px' }}>
+            <S.StatsCardTitle style={{ fontSize: '11px', color: '#5c6679', marginBottom: '8px', fontWeight: '500' }}>成員 × 分類消耗</S.StatsCardTitle>
+            
+            {/* 分類顏色全域圖例 */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', marginBottom: '14px', padding: '6px 8px', background: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+              {memberCategoryStats.categories.map((cat, catIdx) => (
+                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: getCategoryColor(catIdx, 0.95) }} />
+                  <span style={{ fontSize: '11px', color: '#a6aec7' }}>{cat}</span>
+                </div>
+              ))}
+              {memberCategoryStats.categories.length === 0 && (
+                <span style={{ fontSize: '11px', color: '#5c6679' }}>暫無分類數據</span>
+              )}
+            </div>
+
+            <S.BreakdownGroup style={{ gap: '10px' }}>
+              {memberCategoryStats.stats.map((member) => (
+                <div key={member.memberId}>
+                  <S.BreakdownRow style={{ marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: member.memberColor }} />
+                      <S.BreakdownLabel style={{ fontSize: '12px', color: '#e5e7eb', fontWeight: '500' }}>{member.memberName}</S.BreakdownLabel>
                     </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        height: '32px',
-                        backgroundColor: '#050505',
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        border: '1px solid #1a1a1a',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                      }}
-                    >
-                      {memberCategoryStats.categories.map((cat, catIdx) => {
-                        const catAmount = member.categoryBreakdown[cat] || 0;
-                        const percent = member.totalAmount > 0 ? (catAmount / member.totalAmount) * 100 : 0;
-                        const opacityLevels = [1.0, 0.85, 0.7, 0.55, 0.4];
-                        const opacity = opacityLevels[catIdx % opacityLevels.length];
-                        const color = getColorWithOpacity(member.memberColor, opacity);
-                        return percent > 0 ? (
-                          <div
-                            key={cat}
-                            style={{
-                              width: `${percent}%`,
-                              backgroundColor: color,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '8px',
-                              color: '#fff',
-                              fontWeight: 'bold',
-                              transition: 'all 0.2s',
-                              border: `1px solid ${member.memberColor}`,
-                            }}
-                            title={`${cat}: ${formatCurrency(catAmount, 0)}`}
-                          >
-                            {percent > 15 && <span>{cat.slice(0, 2)}</span>}
-                          </div>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </S.StatsCard>
-          </div>
+                    <S.BreakdownAmount style={{ fontSize: '11px', color: '#8a94aa', fontWeight: '600' }}>{formatCurrency(member.totalAmount, 0)}</S.BreakdownAmount>
+                  </S.BreakdownRow>
+                  
+                  <S.BreakdownBar style={{ height: '14px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    {memberCategoryStats.categories.map((cat, catIdx) => {
+                      const catAmount = member.categoryBreakdown[cat] || 0;
+                      const percent = member.totalAmount > 0 ? (catAmount / member.totalAmount) * 100 : 0;
+                      const color = getCategoryColor(catIdx, 0.85);
+                      return percent > 0 ? (
+                        <S.BarSegment
+                          key={cat}
+                          darkText={false}
+                          style={{ 
+                            width: `${percent}%`, 
+                            backgroundColor: color,
+                            height: '100%',
+                            fontSize: '9px',
+                            fontWeight: '600',
+                            color: '#000',
+                            textShadow: 'none'
+                          }}
+                          title={`${cat}: ${formatCurrency(catAmount, 0)}`}
+                        >
+                          {percent > 22 ? cat.slice(0, 1) : null}
+                        </S.BarSegment>
+                      ) : null;
+                    })}
+                  </S.BreakdownBar>
+                </div>
+              ))}
+            </S.BreakdownGroup>
+          </S.StatsCard>
         </S.StatsContainer>
       ) : (
-        <S.EmptyState>此月份暫無記帳紀錄</S.EmptyState>
+        <S.EmptyState style={{ fontSize: '12px', marginTop: '30px' }}>此月份暫無記帳紀錄</S.EmptyState>
       )}
     </>
   );
