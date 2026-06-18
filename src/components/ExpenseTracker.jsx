@@ -28,6 +28,7 @@ export default function ExpenseTracker() {
   const [expenseForm, setExpenseForm] = useState(initialExpenseForm);
   const [settingsForm, setSettingsForm] = useState(initialSettingsForm);
 
+  // 🧠 初始化讀取核心基本設定
   useEffect(() => {
     let isMounted = true;
 
@@ -63,6 +64,11 @@ export default function ExpenseTracker() {
     };
   }, []);
 
+  // ⚡ 核心功能：當用戶「切換 Tab」嘅時候，即時向 Supabase 重新獲取開支紀錄清單
+  useEffect(() => {
+    fetchExpenses();
+  }, [view]); // 💡 監聽 view，一轉 Tab 就自動 Call 數據，保持實時無縫重新整理
+
   useEffect(() => {
     if (mainCat && categories[mainCat]) {
       setSubCat(categories[mainCat][0] || '');
@@ -72,16 +78,6 @@ export default function ExpenseTracker() {
   const fetchExpenses = async () => {
     const { data } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
     if (data) setRecords(data);
-  };
-
-  const reloadMembers = async () => {
-    const { data } = await supabase.from('members').select('*').order('id');
-    if (data) {
-      setMembers(data);
-      if (!selectedMember) {
-        setSelectedMember(data[0]?.id?.toString() || '');
-      }
-    }
   };
 
   const reloadCategories = async () => {
@@ -97,7 +93,6 @@ export default function ExpenseTracker() {
 
   const stats = buildStats(records, members);
   const groupedRecords = formatExpenseGroups(records);
-
   const currentMember = findMember(members, selectedMember);
 
   const handleExpenseInput = (event) => {
@@ -124,7 +119,6 @@ export default function ExpenseTracker() {
     const amountValue = Number(expenseForm.amount);
     if (!amountValue || !selectedMember || !mainCat || !subCat) return;
 
-    // Build timestamp from date/time inputs or use current time
     let timestamp = new Date();
     if (expenseForm.expenseDate) {
       const dateStr = expenseForm.expenseDate;
@@ -156,37 +150,13 @@ export default function ExpenseTracker() {
     if (!error) fetchExpenses();
   };
 
-  const handleAddMember = async (event) => {
-    event.preventDefault();
-    if (!settingsForm.newMemberName) return;
-
-    const { error } = await supabase
-      .from('members')
-      .insert([{ name: settingsForm.newMemberName, color: settingsForm.newMemberColor }]);
-
-    if (!error) {
-      setSettingsForm(prev => ({ ...prev, newMemberName: '' }));
-      await reloadMembers();
-    }
-  };
-
-  const handleDeleteMember = async (id) => {
-    if (!window.confirm('警告：刪除成員會一併刪除佢所有記帳紀錄！確定？')) return;
-    const { error } = await supabase.from('members').delete().eq('id', id);
-    if (!error) reloadMembers();
-  };
-
   const handleAddCategory = async (event) => {
     event.preventDefault();
     const mainCategory = (settingsForm.selectedMainCat || settingsForm.newMainCat || '').trim();
     const subCategory = (settingsForm.newSubCat || '').trim();
 
-    if (!mainCategory) {
-      window.alert('請選擇或輸入主分類，然後再送出。');
-      return;
-    }
-    if (!subCategory) {
-      window.alert('請輸入子分類。');
+    if (!mainCategory || !subCategory) {
+      window.alert('請輸入完整分類資訊。');
       return;
     }
 
@@ -194,7 +164,7 @@ export default function ExpenseTracker() {
       (category) => category.main_category === mainCategory && category.sub_category === subCategory
     );
     if (duplicate) {
-      window.alert('此主分類與子分類組合已存在，請改用其他名稱。');
+      window.alert('此組合已存在！');
       return;
     }
 
@@ -203,12 +173,7 @@ export default function ExpenseTracker() {
       .insert([{ main_category: mainCategory, sub_category: subCategory }]);
 
     if (!error) {
-      setSettingsForm((prev) => ({
-        ...prev,
-        selectedMainCat: '',
-        newMainCat: '',
-        newSubCat: '',
-      }));
+      setSettingsForm((prev) => ({ ...prev, selectedMainCat: '', newMainCat: '', newSubCat: '' }));
       await reloadCategories();
     }
   };
@@ -218,42 +183,32 @@ export default function ExpenseTracker() {
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (!error) reloadCategories();
   };
-  // ⚡ 核心連動更新：改名或移動分類時，一併批次重寫歷史流水帳紀錄
+
   const handleUpdateCategory = async (id, oldCategoryData, newCategoryData) => {
     try {
-      // 1. 先去更新 categories 資料表
       const { error: catError } = await supabase
         .from('categories')
-        .update({
-          main_category: newCategoryData.main_category,
-          sub_category: newCategoryData.sub_category
-        })
+        .update({ main_category: newCategoryData.main_category, sub_category: newCategoryData.sub_category })
         .eq('id', id);
 
       if (catError) throw catError;
 
-      // 2. 自動發動全量連動：將 expenses 資料表內所有吻合舊分類名嘅紀錄一次過批次重寫！
       const { error: expError } = await supabase
         .from('expenses')
-        .update({
-          main_category: newCategoryData.main_category,
-          sub_category: newCategoryData.sub_category
-        })
+        .update({ main_category: newCategoryData.main_category, sub_category: newCategoryData.sub_category })
         .eq('main_category', oldCategoryData.main_category)
         .eq('sub_category', oldCategoryData.sub_category);
 
       if (expError) throw expError;
 
-      window.alert('✅ 分類更變成功，相關歷史流水帳已全面連動同步更新！');
-
-      // 3. 重新讀取核心 State
+      window.alert('✅ 分類更新成功，歷史流水帳已全面同步！');
       await reloadCategories();
       await fetchExpenses();
     } catch (error) {
-      console.error('❌ 更新分類連動失敗:', error);
-      window.alert('更新失敗，請檢查網路連線或資料欄位。');
+      console.error('❌ 更新失敗:', error);
     }
   };
+
   return (
     <S.AppShell>
       <S.Nav>
@@ -305,7 +260,7 @@ export default function ExpenseTracker() {
           onSettingsInput={handleSettingsInput}
           onAddCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
-          onUpdateCategory={handleUpdateCategory} /* ⚡ 注入新威力 */
+          onUpdateCategory={handleUpdateCategory}
         />
       )}
     </S.AppShell>

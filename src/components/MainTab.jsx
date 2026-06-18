@@ -230,6 +230,7 @@ export default function MainTab({
     <>
       {/* 記帳密實表單 */}
       <S.Form onSubmit={handleAddExpenseWithMemory} style={{ gap: '5px', marginTop: '0' }}>
+        {/* 🌟 修正點：拿走了 autoFocus 屬性，防堵 iOS 頁面切換時自動拉起鍵盤爆 UI */}
         <S.InputAmount
           name="amount"
           type="number"
@@ -238,7 +239,6 @@ export default function MainTab({
           value={expenseForm.amount}
           onChange={onExpenseInput}
           required
-          autoFocus
           inputMode="decimal"
         />
 
@@ -328,11 +328,10 @@ export default function MainTab({
             <S.TotalText style={{ fontSize: '26px', fontWeight: '700', color: '#fff', letterSpacing: '-0.02em' }}>{formatCurrency(monthlyStats.total)}</S.TotalText>
           </S.TotalBlock>
 
-          {/* 📅 7欄極簡 14px 大字月曆 */}
+          {/* 📅 月曆 */}
           <S.StatsCard style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.04)', padding: '10px 4px', borderRadius: '14px' }}>
             <S.StatsCardTitle style={{ fontSize: '11px', color: '#5c6679', marginBottom: '10px', fontWeight: '500', paddingLeft: '4px' }}>月度日期分佈 (顏色愈紅代表消費愈高)</S.StatsCardTitle>
             
-            {/* 🌟 呢度已修正：攞走咗原本打錯嘅多餘尖括號 */}
             <S.CalendarHeader>
               {weekDays.map(day => (
                 <S.CalendarHeaderCell key={day}>{day}</S.CalendarHeaderCell>

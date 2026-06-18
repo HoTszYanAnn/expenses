@@ -4,7 +4,7 @@ import * as S from './ExpenseTracker.styles.jsx';
 export default function DetailsTab({ groupedRecords = [], members = [], onDeleteExpense, findMember, formatCurrency }) {
   const [selectedRecord, setSelectedRecord] = useState(null);
 
-  // 💊 藥丸選單過濾與排序狀態
+  // 💊 藥丸選單過濾與排序狀態 (改為預設 null)
   const [activeMemberFilter, setActiveMemberFilter] = useState(null);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState(null);
   const [isSortByAmount, setIsSortByAmount] = useState(false);
@@ -31,11 +31,11 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
       groupedRecords.forEach(group => {
         if (group && Array.isArray(group.items)) {
           group.items.forEach(item => {
-            if (activeMemberFilter !== null && item.member_id == activeMemberFilter) { /* match */ }
-            else if (activeMemberFilter !== null) return;
+            // 💡 如果 activeMemberFilter 有值，就必須符合；為 null 就代表 pass（全員）
+            if (activeMemberFilter !== null && item.member_id != activeMemberFilter) return;
 
-            if (activeCategoryFilter !== null && String(item.main_category).trim() === String(activeCategoryFilter).trim()) { /* match */ }
-            else if (activeCategoryFilter !== null) return;
+            // 💡 如果 activeCategoryFilter 有值，就必須符合；為 null 就代表 pass（全部分類）
+            if (activeCategoryFilter !== null && String(item.main_category).trim() !== String(activeCategoryFilter).trim()) return;
 
             allItems.push(item);
           });
@@ -56,12 +56,8 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
       if (!group || !Array.isArray(group.items)) return;
 
       const matchedItems = group.items.filter(item => {
-        if (activeMemberFilter !== null && item.member_id == activeMemberFilter) { /* match */ }
-        else if (activeMemberFilter !== null) return false;
-
-        if (activeCategoryFilter !== null && String(item.main_category).trim() === String(activeCategoryFilter).trim()) { /* match */ }
-        else if (activeCategoryFilter !== null) return false;
-
+        if (activeMemberFilter !== null && item.member_id != activeMemberFilter) return false;
+        if (activeCategoryFilter !== null && String(item.main_category).trim() !== String(activeCategoryFilter).trim()) return false;
         return true;
       });
 
@@ -84,7 +80,7 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
         歷史流水帳明細
       </S.SectionTitle>
 
-      {/* 💊 📱 完美滑動修復版：左右橫向滑動全功能藥丸列 */}
+      {/* 💊 📱 左右橫向滑動全功能藥丸列 (拿走了成員與分類的「全部」按鈕) */}
       <div 
         style={{
           display: 'flex',
@@ -96,9 +92,9 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
           width: '100%',
           marginBottom: '14px',
           paddingBottom: '8px',
-          touchAction: 'pan-x',              /* 🌟 核心：告訴手機網頁只允許橫向滑動，防止手勢衝突 */
-          WebkitOverflowScrolling: 'touch',  /* 🌟 核心：開啟 iOS 原生絲滑滾動阻尼感 */
-          whiteSpace: 'nowrap'               /* 🌟 核心：防止內容被迫換行 */
+          touchAction: 'pan-x',
+          WebkitOverflowScrolling: 'touch',
+          whiteSpace: 'nowrap'
         }} 
         hide-scrollbar="true"
       >
@@ -107,7 +103,7 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
           type="button"
           onClick={() => setIsSortByAmount(!isSortByAmount)}
           style={{
-            display: 'inline-flex',          /* 🌟 核心：確保按鈕不被內縮 */
+            display: 'inline-flex',
             alignItems: 'center',
             whiteSpace: 'nowrap',
             padding: '6px 14px',
@@ -118,7 +114,7 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
             color: isSortByAmount ? '#f87171' : '#8a94aa',
             fontWeight: isSortByAmount ? '700' : '500',
             cursor: 'pointer',
-            flexShrink: 0                    /* 🌟 核心：防止被 Flex 機制擠扁 */
+            flexShrink: 0
           }}
         >
           {isSortByAmount ? '🔥 大額優先' : '🕒 時間排序'}
@@ -127,26 +123,6 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
         <span style={{ width: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 2px', flexShrink: 0 }} />
 
         {/* B. 成員切換藥丸 */}
-        <button
-          type="button"
-          onClick={() => setActiveMemberFilter(null)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            whiteSpace: 'nowrap',
-            padding: '6px 14px',
-            fontSize: '11px',
-            borderRadius: '20px',
-            border: activeMemberFilter === null ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
-            background: activeMemberFilter === null ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.01)',
-            color: activeMemberFilter === null ? '#fff' : '#67718a',
-            cursor: 'pointer',
-            flexShrink: 0
-          }}
-        >
-          👥 全員
-        </button>
-        
         {members.map(m => (
           <button
             key={m.id}

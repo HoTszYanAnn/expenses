@@ -1,6 +1,14 @@
 import styled from 'styled-components';
 
+// 注入全域樣式（直接寫喺呢度或者主 entry），確保最外層 body 都是黑底
+if (typeof document !== 'undefined') {
+  document.body.style.backgroundColor = '#020205';
+  document.body.style.margin = '0';
+  document.body.style.padding = '0';
+}
+
 export const AppShell = styled.div`
+  /* 鎖死全黑底色，防止滾動或拉扯時兩邊漏白 */
   background: radial-gradient(circle at top, rgba(40, 48, 73, 0.14), transparent 25%),
     linear-gradient(180deg, #020205 0%, #020205 48%, #07080d 100%);
   color: #e5e7eb;
@@ -8,25 +16,35 @@ export const AppShell = styled.div`
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
-  padding: 24px 20px 120px;
+  
+  /* 🌟 完美修復：利用 padding-top / padding-bottom 避開 iPhone 17 Pro 嘅動態島(瀏海)同底部手勢橫條 */
+  padding-top: calc(24px + env(safe-area-inset-top));
+  padding-left: calc(20px + env(safe-area-inset-left));
+  padding-right: calc(20px + env(safe-area-inset-right));
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 
   @media (max-width: 680px) {
-    padding: 18px 14px 110px;
+    padding-top: calc(18px + env(safe-area-inset-top));
+    padding-left: calc(14px + env(safe-area-inset-left));
+    padding-right: calc(14px + env(safe-area-inset-right));
+    padding-bottom: calc(110px + env(safe-area-inset-bottom));
   }
 `;
 
 export const Nav = styled.nav`
   position: fixed;
-  bottom: 24px; /* 移高少少，更具懸浮感 */
+  /* 🌟 完美修復：利用 safe-area-inset-bottom 計算，不論是 iOS 底線還是 Android 三鍵導航，都能完美懸浮且不穿幫 */
+  bottom: calc(24px + env(safe-area-inset-bottom)); 
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 32px);
-  max-width: 500px; /* 極簡風建議中間收緊，唔好做太闊 */
-  background: rgba(10, 11, 14, 0.85); /* 更沉浸嘅暗黑毛玻璃 */
+  max-width: 500px; 
+  background: rgba(10, 11, 14, 0.85); 
   border: 1px solid rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
   border-radius: 999px;
@@ -37,11 +55,6 @@ export const Nav = styled.nav`
   z-index: 1000;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 
               inset 0 1px 0 rgba(255, 255, 255, 0.05);
-
-  /* 針對無 Home 鍵嘅全螢幕手機（如 iPhone FaceID 系列），預留安全區域 */
-  @supports (padding-bottom: env(safe-area-inset-bottom)) {
-    bottom: calc(16px + env(safe-area-inset-bottom));
-  }
 `;
 
 export const NavButton = styled.button`
@@ -110,20 +123,20 @@ export const Form = styled.form`
 `;
 
 export const InputAmount = styled.input`
-  background: rgba(255, 255, 255, 0.01); /* 微弱透明底，不顯得死黑 */
+  background: rgba(255, 255, 255, 0.01);
   border: 1px solid rgba(255, 255, 255, 0.05);
   color: #fff;
-  font-size: 32px; /* 稍微收細，更洗鍊 */
+  font-size: 32px;
   font-weight: 700;
   text-align: center;
   width: 100%;
-  height: 54px; /* 固定高度，嚴防爆 Layout */
+  height: 54px;
   outline: none;
   border-radius: 12px;
   padding: 0 16px;
-  box-sizing: border-box; /* 確保 padding 唔會撐開總寬度 */
+  box-sizing: border-box;
   letter-spacing: -0.02em;
-  font-family: 'Inter', monospace; /* 使用等寬數字感覺高檔啲 */
+  font-family: 'Inter', monospace;
   transition: border-color 0.2s ease, background 0.2s ease;
 
   &:focus {
@@ -131,14 +144,12 @@ export const InputAmount = styled.input`
     background: rgba(255, 255, 255, 0.03);
   }
 
-  /* 核心：暴力消除 Chrome, Safari, Edge, Opera 原生超樣衰嘅數字上下箭頭 */
   &::-webkit-outer-spin-button,
   &::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
   }
 
-  /* 核心：暴力消除 Firefox 數字上下箭頭 */
   &[type='number'] {
     -moz-appearance: textfield;
   }
@@ -318,7 +329,7 @@ export const MonthNav = styled.div`
   margin-bottom: 8px;
   gap: 12px;
   width: 100%;
-  flex-direction: row; /* 📱 夾死橫向，不准換行！ */
+  flex-direction: row;
   flex-wrap: nowrap !important; 
 `;
 
@@ -346,7 +357,7 @@ export const MonthLabel = styled.span`
 export const CalendarHeader = styled.div`
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px; /* 縮窄到 2px，留更多位俾字 */
+  gap: 2px;
   margin-bottom: 4px;
   color: #5c6679;
   font-size: 9px;
@@ -558,10 +569,11 @@ export const CardMeta = styled.div`
   gap: 16px;
   flex-wrap: wrap;
 `;
+
 export const CalendarGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px; /* 縮窄間距 */
+  gap: 2px;
 `;
 
 export const CalendarCell = styled.div`
@@ -659,9 +671,9 @@ export const DateHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: transparent; /* 攞走原本嘅深藍底，改用純文字極簡風 */
+  background: transparent;
   border-left: 2px solid rgba(248, 138, 165, 0.8);
-  padding: 4px 0 4px 8px; /* 大幅縮減內襯 */
+  padding: 4px 0 4px 8px;
   margin-bottom: 4px;
 `;
 
@@ -687,10 +699,10 @@ export const ListItem = styled.button`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px; /* 原本係 14px 16px，依家大幅縮減 */
-  background: rgba(255, 255, 255, 0.02); /* 極微弱嘅白底，層次更精細 */
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 10px; /* 圓角改小，顯得更洗鍊俐落 */
+  border-radius: 10px;
   gap: 10px;
   cursor: pointer;
   transition: background 0.15s ease;
@@ -820,7 +832,7 @@ export const DeleteButton = styled.span`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  user-select: none;Nav
+  user-select: none;
   border-radius: 50%;
   transition: background 0.2s ease, color 0.2s ease;
 
@@ -842,14 +854,16 @@ export const EmptyState = styled.div`
   color: #67718a;
   text-align: center;
   margin-top: 40px;
-  font-size: 14px;Nav
+  font-size: 14px;
 `;
+
 export const Divider = styled.hr`
   border: none;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   margin: 20px 0;
   width: 100%;
 `;
+
 export const QuickDateTimeBadge = styled.button`
   background: ${props => props.isCustom ? 'rgba(248, 138, 165, 0.12)' : 'rgba(255, 255, 255, 0.03)'};
   border: 1px solid ${props => props.isCustom ? 'rgba(248, 138, 165, 0.3)' : 'rgba(255, 255, 255, 0.05)'};

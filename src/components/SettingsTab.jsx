@@ -7,11 +7,11 @@ export default function SettingsTab({
   onSettingsInput,
   onAddCategory,
   onDeleteCategory,
-  onUpdateCategory, // ⚡ 喺外層傳入，負責處理改名、搬移同埋連動更新紀錄
+  onUpdateCategory, 
 }) {
   const [sortBy, setSortBy] = useState('date-desc');
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState(null); // 💊 藥丸選取狀態
-  const [editingId, setEditingId] = useState(null); // ✏️ 記錄邊個分類改緊名
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState(null); // 💊 null 代表全部
+  const [editingId, setEditingId] = useState(null); 
   const [editForm, setEditForm] = useState({ main_category: '', sub_category: '' });
 
   // 🧠 1. 分類排序處理
@@ -32,7 +32,7 @@ export default function SettingsTab({
     });
   }, [rawCategories, sortBy]);
 
-  // 🧠 2. 提取所有現存主分類用嚟整新增下拉清單
+  // 🧠 2. 提取所有現存主分類用嚟整 Capsule
   const existingMainCats = useMemo(() => {
     const categoriesToUse = Array.isArray(rawCategories) ? rawCategories : [];
     return Array.from(new Set(categoriesToUse.map((category) => category.main_category).filter(Boolean))).sort((a, b) => a.localeCompare(b));
@@ -50,45 +50,39 @@ export default function SettingsTab({
     return groups;
   }, [sortedCategories]);
 
-  // 🧠 4. 基於 💊 Capsule 藥丸過濾顯示嘅主分類
+  // 🧠 4. 基於 Capsule 篩選顯示，如果為 null (Unticked) 則回傳完整清單
   const visibleGroupKeys = useMemo(() => {
     const keys = Object.keys(categoryGroups);
-    if (!activeCategoryFilter) return keys;
+    if (!activeCategoryFilter) return keys; // 💡 Untick all = select all
     return keys.filter(mainCat => mainCat === activeCategoryFilter);
   }, [categoryGroups, activeCategoryFilter]);
 
-  // ✏️ 啟動編輯狀態
   const startEdit = (cat) => {
     setEditingId(cat.id);
     setEditForm({ main_category: cat.main_category, sub_category: cat.sub_category });
   };
 
-  // 💾 儲存編輯結果（連動埋 Expense 紀錄）
   const handleSaveEdit = async (id, oldCat) => {
     if (!editForm.main_category.trim() || !editForm.sub_category.trim()) {
       window.alert('主分類同子分類都唔可以留空！');
       return;
     }
-    
-    // 呼叫外層傳入嘅異步更新功能
     await onUpdateCategory(id, oldCat, {
       main_category: editForm.main_category.trim(),
       sub_category: editForm.sub_category.trim()
     });
-    
     setEditingId(null);
   };
 
   return (
     <S.SettingsContainer style={{ gap: '16px' }}>
       
-      {/* 自定義分類管理區塊 */}
       <S.SettingsSection>
         <S.SectionTitle style={{ fontSize: '14px', color: '#8a94aa', fontWeight: '500', marginBottom: '12px' }}>
           自定義分類管理
         </S.SectionTitle>
 
-        {/* 💊 📱 完美滑動藥丸列：拿走手動輸入，改用 Capsule 橫向快速篩選 */}
+        {/* 💊 📱 滑動藥丸列：拿走「全部顯示」Choice，直接按 Capsule 切換/反選 */}
         <div 
           style={{
             display: 'flex',
@@ -106,26 +100,6 @@ export default function SettingsTab({
           }} 
           hide-scrollbar="true"
         >
-          <button
-            type="button"
-            onClick={() => setActiveCategoryFilter(null)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              whiteSpace: 'nowrap',
-              padding: '6px 14px',
-              fontSize: '11px',
-              borderRadius: '20px',
-              border: activeCategoryFilter === null ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
-              background: activeCategoryFilter === null ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.01)',
-              color: activeCategoryFilter === null ? '#fff' : '#67718a',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-          >
-            📂 全部顯示
-          </button>
-          
           {existingMainCats.map(cat => (
             <button
               key={cat}
@@ -139,7 +113,7 @@ export default function SettingsTab({
                 fontSize: '11px',
                 borderRadius: '20px',
                 border: activeCategoryFilter === cat ? '1px solid #ff8aa5' : '1px solid transparent',
-                background: activeCategoryFilter === cat ? 'rgba(248, 138, 165, 0.12)' : 'rgba(255,255,255,0.01)',
+                background: activeCategoryFilter === cat ? 'rgba(248, 138, 165, 0.12)' : 'rgba(255,255,255,0.02)',
                 color: activeCategoryFilter === cat ? '#ff8aa5' : '#8a94aa',
                 fontWeight: activeCategoryFilter === cat ? '600' : '500',
                 cursor: 'pointer',
@@ -151,7 +125,7 @@ export default function SettingsTab({
           ))}
         </div>
 
-        {/* 工具列：排序及統計 */}
+        {/* 工具列 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <select
             value={sortBy}
@@ -176,7 +150,7 @@ export default function SettingsTab({
           </span>
         </div>
 
-        {/* 新增分類 Form 卡片 */}
+        {/* 新增分類 Form */}
         <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)', marginBottom: '14px' }}>
           <S.ResponsiveFormRow as="form" onSubmit={onAddCategory} style={{ gap: '6px' }}>
             <select
@@ -234,7 +208,7 @@ export default function SettingsTab({
           </S.ResponsiveFormRow>
         </div>
 
-        {/* 分類樹狀清單 + ✏️ 內嵌編輯功能 */}
+        {/* 分類樹狀清單 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {visibleGroupKeys.map((mainCategory) => (
             <div key={mainCategory} style={{ border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '8px 10px', background: 'rgba(255,255,255,0.01)' }}>
@@ -255,7 +229,6 @@ export default function SettingsTab({
                     <S.SettingsItemRow key={category.id} style={{ padding: '6px 0', borderBottom: 'none', flexDirection: isEditing ? 'column' : 'row', alignItems: isEditing ? 'stretch' : 'center', gap: '8px' }}>
                       
                       {isEditing ? (
-                        /* ✏️ 手機版極簡內嵌編輯面板 */
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px' }}>
                           <div style={{ display: 'flex', gap: '4px' }}>
                             <S.TextInput
@@ -274,47 +247,24 @@ export default function SettingsTab({
                             />
                           </div>
                           <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                            <button 
-                              type="button" 
-                              onClick={() => setEditingId(null)}
-                              style={{ background: 'transparent', border: 'none', color: '#67718a', fontSize: '11px', cursor: 'pointer', padding: '4px 8px' }}
-                            >
+                            <button type="button" onClick={() => setEditingId(null)} style={{ background: 'transparent', border: 'none', color: '#67718a', fontSize: '11px', cursor: 'pointer', padding: '4px 8px' }}>
                               取消
                             </button>
-                            <button 
-                              type="button" 
-                              onClick={() => handleSaveEdit(category.id, category)}
-                              style={{ background: '#ff8aa5', border: 'none', color: '#000', fontSize: '11px', fontWeight: '600', borderRadius: '4px', cursor: 'pointer', padding: '4px 10px' }}
-                            >
+                            <button type="button" onClick={() => handleSaveEdit(category.id, category)} style={{ background: '#ff8aa5', border: 'none', color: '#000', fontSize: '11px', fontWeight: '600', borderRadius: '4px', cursor: 'pointer', padding: '4px 10px' }}>
                               儲存更新
                             </button>
                           </div>
                         </div>
                       ) : (
-                        /* 顯示原始分類資料 */
                         <>
                           <S.CatNameContainer>
                             <span style={{ color: '#a6aec7', fontSize: '12px' }}>{category.sub_category}</span>
                           </S.CatNameContainer>
                           
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {/* ✏️ 編輯按鈕 */}
-                            <button
-                              type="button"
-                              onClick={() => startEdit(category)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: '#5c6679',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                padding: '4px 8px',
-                                transition: 'color 0.2s'
-                              }}
-                            >
+                            <button type="button" onClick={() => startEdit(category)} style={{ background: 'none', border: 'none', color: '#5c6679', cursor: 'pointer', fontSize: '12px', padding: '4px 8px' }}>
                               ✏️
                             </button>
-                            {/* ✕ 刪除按鈕 */}
                             <S.DeleteButton onClick={() => onDeleteCategory(category.id)} style={{ fontSize: '16px', width: '22px', height: '22px' }}>×</S.DeleteButton>
                           </div>
                         </>
@@ -329,7 +279,6 @@ export default function SettingsTab({
         </div>
       </S.SettingsSection>
 
-      {/* 隱藏滾動條樣式 */}
       <style>{`
         [hide-scrollbar="true"]::-webkit-scrollbar { display: none !important; }
         [hide-scrollbar="true"] { -ms-overflow-style: none !important; scrollbar-width: none !important; }
