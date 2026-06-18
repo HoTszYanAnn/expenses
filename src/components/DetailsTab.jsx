@@ -1,17 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import * as S from './ExpenseTracker.styles.jsx';
 
-export default function DetailsTab({ 
-  groupedRecords = [], 
-  members = [], 
-  categories = {}, 
-  onDeleteExpense, 
-  onUpdateExpense, 
-  findMember, 
-  formatCurrency 
+export default function DetailsTab({
+  groupedRecords = [],
+  members = [],
+  categories = {},
+  onDeleteExpense,
+  onUpdateExpense,
+  findMember,
+  formatCurrency
 }) {
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [isEditing, setIsEditing] = useState(false); 
+  const [isEditing, setIsEditing] = useState(false);
 
   // 📦 編輯表單暫存狀態
   const [editForm, setEditForm] = useState({
@@ -150,12 +150,12 @@ export default function DetailsTab({
       </S.SectionTitle>
 
       {/* 💊 滑動藥丸列 */}
-      <div 
+      <div
         style={{
           display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', overflowX: 'auto', overflowY: 'hidden',
           gap: '6px', width: '100%', marginBottom: '14px', paddingBottom: '8px', touchAction: 'pan-x',
           WebkitOverflowScrolling: 'touch', whiteSpace: 'nowrap'
-        }} 
+        }}
         hide-scrollbar="true"
       >
         <button
@@ -200,8 +200,8 @@ export default function DetailsTab({
               display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', padding: '6px 14px', fontSize: '11px', borderRadius: '20px',
               border: activeCategoryFilter === cat ? '1px solid #60a5fa' : '1px solid transparent',
               background: activeCategoryFilter === cat ? 'rgba(96, 165, 250, 0.12)' : 'rgba(255,255,255,0.01)',
-              color: activeCategoryFilter === cat ? '#60a5fa' : '#8a94aa', 
-              fontWeight: activeCategoryFilter === cat ? '600' : '500', 
+              color: activeCategoryFilter === cat ? '#60a5fa' : '#8a94aa',
+              fontWeight: activeCategoryFilter === cat ? '600' : '500',
               cursor: 'pointer', flexShrink: 0
             }}
           >
@@ -259,19 +259,19 @@ export default function DetailsTab({
       {/* 🌟 完美的對齊彈窗 (Modal Overlay & Card) */}
       {selectedRecord && (
         <S.ModalOverlay onClick={closeModal} style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}>
-          <S.ModalCard 
-            style={{ 
-              backgroundColor: '#10151f', 
-              border: '1px solid rgba(255,255,255,0.08)', 
-              borderRadius: '24px', 
+          <S.ModalCard
+            style={{
+              backgroundColor: '#10151f',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '24px',
               padding: '24px 20px',
               width: 'calc(100% - 32px)', /* 📱 確保手機版兩邊貼齊，留固定安全間距 */
-              maxWidth: '420px', 
+              maxWidth: '420px',
               boxSizing: 'border-box'
-            }} 
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            
+
             <S.ModalHeader style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
               <div style={{ color: '#fff', fontWeight: '600', fontSize: '15px', letterSpacing: '0.05em' }}>
                 {isEditing ? '✏️ 編輯記帳紀錄' : '交易明細'}
@@ -284,12 +284,12 @@ export default function DetailsTab({
                 </div>
               )}
             </S.ModalHeader>
-            
+
             <S.ModalBody style={{ gap: '14px', display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box' }}>
               {isEditing ? (
                 /* ---------------- 📝 編輯狀態表單：完全重構 100% 邊對邊對齊 ---------------- */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
-                  
+
                   {/* 金額修改 */}
                   <div style={{ width: '100%' }}>
                     <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>金額</div>
@@ -346,24 +346,34 @@ export default function DetailsTab({
                     />
                   </div>
 
-                  {/* 日期與時間：絕不重疊的 50% 完美對切欄位 */}
-                  <div style={{ display: 'flex', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+
+                    <div style={{ minWidth: 0, width: '100%' }}>
                       <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>日期</div>
                       <S.TextInput
-                        name="date" type="date" value={editForm.date} onChange={handleInputChange}
+                        name="date"
+                        type="date"
+                        value={editForm.date}
+                        onChange={handleInputChange}
                         onClick={(e) => e.target.showPicker?.()}
-                        style={{ width: '100%', height: '42px', padding: '0 10px', fontSize: '13px', borderRadius: '12px', boxSizing: 'border-box' }}
+                        /* ⚡ 關鍵：強制 minWidth=0 釋放 Flex 壓縮鎖，縮減 padding 留位給 iOS 原生月曆圖標 */
+                        style={{ width: '100%', height: '38px', padding: '0 6px', fontSize: '13px', borderRadius: '10px', minWidth: '0', boxSizing: 'border-box' }}
                       />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+
+                    <div style={{ minWidth: 0, width: '100%' }}>
                       <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>時間</div>
                       <S.TextInput
-                        name="time" type="time" value={editForm.time} onChange={handleInputChange}
+                        name="time"
+                        type="time"
+                        value={editForm.time}
+                        onChange={handleInputChange}
                         onClick={(e) => e.target.showPicker?.()}
-                        style={{ width: '100%', height: '42px', padding: '0 10px', fontSize: '13px', borderRadius: '12px', boxSizing: 'border-box' }}
+                        /* ⚡ 關鍵：同上，確保時間鐘仔圖標有足夠空間，一行過對齊 */
+                        style={{ width: '100%', height: '38px', padding: '0 6px', fontSize: '13px', borderRadius: '10px', minWidth: '0', boxSizing: 'border-box' }}
                       />
                     </div>
+
                   </div>
 
                 </div>
@@ -374,7 +384,7 @@ export default function DetailsTab({
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedRecord.member.color }} />
                     <span style={{ color: '#e5e7eb', fontSize: '12px', fontWeight: '500' }}>{selectedRecord.member.name}</span>
                   </div>
-                  
+
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ color: '#5c6679', fontSize: '11px', letterSpacing: '0.02em' }}>分類</div>
                     <div style={{ color: '#fff', fontSize: '14px', fontWeight: '500', marginTop: '2px' }}>
@@ -398,7 +408,7 @@ export default function DetailsTab({
                 </div>
               )}
             </S.ModalBody>
-            
+
             {/* 下方動作按鈕列 */}
             <S.ModalFooter style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
               {isEditing ? (

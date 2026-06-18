@@ -229,14 +229,14 @@ export const TextInput = styled.input`
   padding: 14px 16px;
   font-size: 14px;
   flex: 1;
-  min-width: 0; /* 改為 0 防止在並排時強制擠開寬度 */
-  outline: none;
+  /* 🌟 核心修正：將原本的 120px 改做 0，咁樣當佢擺喺 Grid 或者 50% 容器入面嗰陣，先可以完美收縮，絕對唔會同隔離重疊！ */
+  min-width: 0; 
   border-radius: 16px;
   box-sizing: border-box;
   font-family: inherit;
 
   @media (max-width: 520px) {
-    font-size: 13px; /* 恢復原本精美細緻嘅比例 */
+    font-size: 13px;
     padding: 11px 12px;
   }
 `;
