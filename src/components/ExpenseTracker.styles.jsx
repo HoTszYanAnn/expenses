@@ -8,16 +8,18 @@ if (typeof document !== 'undefined') {
 }
 
 export const AppShell = styled.div`
-  /* 鎖死全黑底色，防止滾動或拉扯時兩邊漏白 */
+  /* 🌟 核心：確保不論屏幕幾闊，最底層永遠由全黑底漸變覆蓋，消滅白條 */
   background: radial-gradient(circle at top, rgba(40, 48, 73, 0.14), transparent 25%),
     linear-gradient(180deg, #020205 0%, #020205 48%, #07080d 100%);
   color: #e5e7eb;
   min-height: 100vh;
+  
+  /* 填滿全屏寬度 */
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
   
-  /* 🌟 完美修復：利用 padding-top / padding-bottom 避開 iPhone 17 Pro 嘅動態島(瀏海)同底部手勢橫條 */
+  /* 📱 完美適應 iPhone 17 Pro 動態島、安全橫條與左右補白 */
   padding-top: calc(24px + env(safe-area-inset-top));
   padding-left: calc(20px + env(safe-area-inset-left));
   padding-right: calc(20px + env(safe-area-inset-right));
@@ -212,18 +214,11 @@ export const Select = styled.select`
   cursor: pointer;
   border-radius: 16px;
   font-family: inherit;
+  box-sizing: border-box;
 
   @media (max-width: 520px) {
-    /* 🌟 高級欺騙術：底層宣告 16px 防止 iOS 亂放大 */
-    font-size: 16px;
-    
-    /* 🌟 視覺縮放：利用 scale 將佢縮小到大約 12.8px 的高質感大小 */
-    width: 125%; 
-    transform: scale(0.8);
-    transform-origin: left center; /* 確保縮放對齊左邊，不爆 Layout */
-    
-    padding: 8px 6px;
-    margin-right: -25%; /* 補償 width 放大 125% 造成的排版推移 */
+    font-size: 13px; /* 恢復原本精美細緻嘅比例 */
+    padding: 11px 10px;
   }
 `;
 
@@ -234,23 +229,15 @@ export const TextInput = styled.input`
   padding: 14px 16px;
   font-size: 14px;
   flex: 1;
-  min-width: 120px;
+  min-width: 0; /* 改為 0 防止在並排時強制擠開寬度 */
   outline: none;
   border-radius: 16px;
   box-sizing: border-box;
   font-family: inherit;
 
   @media (max-width: 520px) {
-    /* 🌟 高級欺騙術：物理上是 16px，iOS Safari 極之滿意 */
-    font-size: 16px;
-    
-    /* 🌟 視覺縮放：縮回極簡風該有的細緻度 */
-    width: 125%;
-    transform: scale(0.8);
-    transform-origin: left center;
-    
-    padding: 8px 12px;
-    margin-right: -25%; /* 補償排版差額 */
+    font-size: 13px; /* 恢復原本精美細緻嘅比例 */
+    padding: 11px 12px;
   }
 `;
 export const ColorInput = styled.input`

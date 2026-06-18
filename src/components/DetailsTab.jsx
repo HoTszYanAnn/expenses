@@ -1,17 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import * as S from './ExpenseTracker.styles.jsx';
 
-export default function DetailsTab({
-  groupedRecords = [],
-  members = [],
-  categories = {},
-  onDeleteExpense,
-  onUpdateExpense,
-  findMember,
-  formatCurrency
+export default function DetailsTab({ 
+  groupedRecords = [], 
+  members = [], 
+  categories = {}, 
+  onDeleteExpense, 
+  onUpdateExpense, 
+  findMember, 
+  formatCurrency 
 }) {
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); 
 
   // 📦 編輯表單暫存狀態
   const [editForm, setEditForm] = useState({
@@ -24,7 +24,7 @@ export default function DetailsTab({
     time: ''
   });
 
-  // 💊 藥丸選單過濾與排序狀態
+  // 💊 藥丸過濾狀態
   const [activeMemberFilter, setActiveMemberFilter] = useState(null);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState(null);
   const [isSortByAmount, setIsSortByAmount] = useState(false);
@@ -58,10 +58,7 @@ export default function DetailsTab({
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setEditForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setEditForm(prev => ({ ...prev, [name]: value }));
   };
 
   const handleMainCatChange = (e) => {
@@ -85,7 +82,6 @@ export default function DetailsTab({
     }
 
     const timestamp = new Date(`${editForm.date}T${editForm.time}:00`);
-
     const updatedPayload = {
       amount: Number(editForm.amount),
       member_id: Number(editForm.member_id),
@@ -99,7 +95,6 @@ export default function DetailsTab({
     closeModal();
   };
 
-  // 🧠 動態生成分類藥丸
   const activeCategories = useMemo(() => {
     const cats = new Set();
     groupedRecords.forEach(group => {
@@ -112,7 +107,6 @@ export default function DetailsTab({
     return Array.from(cats).sort();
   }, [groupedRecords]);
 
-  // ⚡ 數據過濾
   const filteredGroupedRecords = useMemo(() => {
     if (isSortByAmount) {
       const allItems = [];
@@ -156,12 +150,12 @@ export default function DetailsTab({
       </S.SectionTitle>
 
       {/* 💊 滑動藥丸列 */}
-      <div
+      <div 
         style={{
           display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', overflowX: 'auto', overflowY: 'hidden',
           gap: '6px', width: '100%', marginBottom: '14px', paddingBottom: '8px', touchAction: 'pan-x',
           WebkitOverflowScrolling: 'touch', whiteSpace: 'nowrap'
-        }}
+        }} 
         hide-scrollbar="true"
       >
         <button
@@ -206,8 +200,8 @@ export default function DetailsTab({
               display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', padding: '6px 14px', fontSize: '11px', borderRadius: '20px',
               border: activeCategoryFilter === cat ? '1px solid #60a5fa' : '1px solid transparent',
               background: activeCategoryFilter === cat ? 'rgba(96, 165, 250, 0.12)' : 'rgba(255,255,255,0.01)',
-              color: activeCategoryFilter === cat ? '#60a5fa' : '#8a94aa',
-              fontWeight: activeCategoryFilter === cat ? '600' : '500',
+              color: activeCategoryFilter === cat ? '#60a5fa' : '#8a94aa', 
+              fontWeight: activeCategoryFilter === cat ? '600' : '500', 
               cursor: 'pointer', flexShrink: 0
             }}
           >
@@ -216,7 +210,7 @@ export default function DetailsTab({
         ))}
       </div>
 
-      {/* 歷史清單 */}
+      {/* 歷史流水帳清單 */}
       {filteredGroupedRecords.length > 0 ? (
         <S.TimelineContainer style={{ marginTop: '0', gap: '12px' }}>
           {filteredGroupedRecords.map((group) => (
@@ -262,12 +256,23 @@ export default function DetailsTab({
         <S.EmptyState>清單空空如也 👩‍❤️‍👨</S.EmptyState>
       )}
 
-      {/* Modal 彈窗 */}
+      {/* 🌟 完美的對齊彈窗 (Modal Overlay & Card) */}
       {selectedRecord && (
         <S.ModalOverlay onClick={closeModal} style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}>
-          <S.ModalCard style={{ backgroundColor: '#10151f', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '24px 16px', boxSizing: 'border-box' }} onClick={(e) => e.stopPropagation()}>
-
-            <S.ModalHeader style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+          <S.ModalCard 
+            style={{ 
+              backgroundColor: '#10151f', 
+              border: '1px solid rgba(255,255,255,0.08)', 
+              borderRadius: '24px', 
+              padding: '24px 20px',
+              width: 'calc(100% - 32px)', /* 📱 確保手機版兩邊貼齊，留固定安全間距 */
+              maxWidth: '420px', 
+              boxSizing: 'border-box'
+            }} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            
+            <S.ModalHeader style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
               <div style={{ color: '#fff', fontWeight: '600', fontSize: '15px', letterSpacing: '0.05em' }}>
                 {isEditing ? '✏️ 編輯記帳紀錄' : '交易明細'}
               </div>
@@ -279,60 +284,50 @@ export default function DetailsTab({
                 </div>
               )}
             </S.ModalHeader>
-
-            <S.ModalBody style={{ gap: '12px', display: 'flex', flexDirection: 'column' }}>
+            
+            <S.ModalBody style={{ gap: '14px', display: 'flex', flexDirection: 'column', width: '100%', boxSizing: 'border-box' }}>
               {isEditing ? (
-                /* ---------------- 📝 編輯狀態表單 ---------------- */
+                /* ---------------- 📝 編輯狀態表單：完全重構 100% 邊對邊對齊 ---------------- */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
-
-                  {/* 金額修改 (🌟 手機強制 16px 核心阻擊 Auto-zoom) */}
-                  <div>
-                    <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>金額</div>
+                  
+                  {/* 金額修改 */}
+                  <div style={{ width: '100%' }}>
+                    <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>金額</div>
                     <S.TextInput
-                      name="amount"
-                      type="number"
-                      step="any"
-                      inputMode="decimal"
-                      value={editForm.amount}
-                      onChange={handleInputChange}
-                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '10px', fontSize: '16px', fontWeight: '600' }}
+                      name="amount" type="number" step="any" inputMode="decimal"
+                      value={editForm.amount} onChange={handleInputChange}
+                      style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '12px', fontSize: '14px', fontWeight: '600', boxSizing: 'border-box' }}
                     />
                   </div>
 
-                  {/* 記帳人 (一列過) */}
-                  <div>
-                    <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>記帳人</div>
+                  {/* 記帳人 */}
+                  <div style={{ width: '100%' }}>
+                    <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>記帳人</div>
                     <S.Select
-                      name="member_id"
-                      value={editForm.member_id}
-                      onChange={handleInputChange}
-                      style={{ width: '100%', height: '40px', padding: '0 10px', fontSize: '16px', borderRadius: '10px' }}
+                      name="member_id" value={editForm.member_id} onChange={handleInputChange}
+                      style={{ width: '100%', height: '42px', padding: '0 12px', fontSize: '13px', borderRadius: '12px', boxSizing: 'border-box' }}
                     >
                       {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </S.Select>
                   </div>
 
-                  {/* 分類二連彈 (並排) */}
-                  <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                    <div style={{ width: '50%' }}>
-                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>主分類</div>
+                  {/* 主分類與子分類：用 Grid 或 Flex 100% 等分且防疊 */}
+                  <div style={{ display: 'flex', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>主分類</div>
                       <S.Select
-                        name="main_category"
-                        value={editForm.main_category}
-                        onChange={handleMainCatChange}
-                        style={{ width: '100%', height: '40px', padding: '0 8px', fontSize: '16px', borderRadius: '10px' }}
+                        name="main_category" value={editForm.main_category} onChange={handleMainCatChange}
+                        style={{ width: '100%', height: '42px', padding: '0 8px', fontSize: '13px', borderRadius: '12px', boxSizing: 'border-box' }}
                       >
                         {Object.keys(categories).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                       </S.Select>
                     </div>
 
-                    <div style={{ width: '50%' }}>
-                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>子分類</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>子分類</div>
                       <S.Select
-                        name="sub_category"
-                        value={editForm.sub_category}
-                        onChange={handleInputChange}
-                        style={{ width: '100%', height: '40px', padding: '0 8px', fontSize: '16px', borderRadius: '10px' }}
+                        name="sub_category" value={editForm.sub_category} onChange={handleInputChange}
+                        style={{ width: '100%', height: '42px', padding: '0 8px', fontSize: '13px', borderRadius: '12px', boxSizing: 'border-box' }}
                       >
                         {(categories[editForm.main_category] || []).map(sub => (
                           <option key={sub} value={sub}>{sub}</option>
@@ -342,53 +337,44 @@ export default function DetailsTab({
                   </div>
 
                   {/* 備忘備註 */}
-                  <div>
-                    <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>備忘備註</div>
+                  <div style={{ width: '100%' }}>
+                    <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>備忘備註</div>
                     <S.TextInput
-                      name="note"
-                      type="text"
-                      placeholder="無備忘項目..."
-                      value={editForm.note}
-                      onChange={handleInputChange}
-                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '10px', fontSize: '16px' }}
+                      name="note" type="text" placeholder="無備忘項目..."
+                      value={editForm.note} onChange={handleInputChange}
+                      style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '12px', fontSize: '13px', boxSizing: 'border-box' }}
                     />
                   </div>
 
-                  {/* 日期與時間 完美並排版 */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', boxSizing: 'border-box', gap: '8px' }}>
-                    <div style={{ width: '48%', boxSizing: 'border-box' }}>
-                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>日期</div>
+                  {/* 日期與時間：絕不重疊的 50% 完美對切欄位 */}
+                  <div style={{ display: 'flex', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>日期</div>
                       <S.TextInput
-                        name="date"
-                        type="date"
-                        value={editForm.date}
-                        onChange={handleInputChange}
+                        name="date" type="date" value={editForm.date} onChange={handleInputChange}
                         onClick={(e) => e.target.showPicker?.()}
-                        style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '8px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', height: '42px', padding: '0 10px', fontSize: '13px', borderRadius: '12px', boxSizing: 'border-box' }}
                       />
                     </div>
-                    <div style={{ width: '48%', boxSizing: 'border-box' }}>
-                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>時間</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px', paddingLeft: '2px' }}>時間</div>
                       <S.TextInput
-                        name="time"
-                        type="time"
-                        value={editForm.time}
-                        onChange={handleInputChange}
+                        name="time" type="time" value={editForm.time} onChange={handleInputChange}
                         onClick={(e) => e.target.showPicker?.()}
-                        style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '8px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', height: '42px', padding: '0 10px', fontSize: '13px', borderRadius: '12px', boxSizing: 'border-box' }}
                       />
                     </div>
                   </div>
 
                 </div>
               ) : (
-                /* ---------------- 👁️ 唯讀查閱狀態 ---------------- */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center' }}>
+                /* ---------------- 👁️ 唯讀狀態 ---------------- */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', width: '100%' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '20px' }}>
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedRecord.member.color }} />
                     <span style={{ color: '#e5e7eb', fontSize: '12px', fontWeight: '500' }}>{selectedRecord.member.name}</span>
                   </div>
-
+                  
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ color: '#5c6679', fontSize: '11px', letterSpacing: '0.02em' }}>分類</div>
                     <div style={{ color: '#fff', fontSize: '14px', fontWeight: '500', marginTop: '2px' }}>
@@ -412,22 +398,22 @@ export default function DetailsTab({
                 </div>
               )}
             </S.ModalBody>
-
-            {/* 下方按鈕 */}
+            
+            {/* 下方動作按鈕列 */}
             <S.ModalFooter style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
               {isEditing ? (
                 <>
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    style={{ background: 'rgba(255, 255, 255, 0.05)', border: 'none', color: '#a6aec7', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
+                    style={{ background: 'rgba(255, 255, 255, 0.05)', border: 'none', color: '#a6aec7', borderRadius: '10px', padding: '12px', fontSize: '13px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
                   >
                     返回
                   </button>
                   <button
                     type="button"
                     onClick={handleSaveUpdate}
-                    style={{ background: '#3b82f6', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '700', flex: 1 }}
+                    style={{ background: '#3b82f6', border: 'none', color: '#fff', borderRadius: '10px', padding: '12px', fontSize: '13px', cursor: 'pointer', fontWeight: '700', flex: 1 }}
                   >
                     儲存修改
                   </button>
@@ -437,14 +423,14 @@ export default function DetailsTab({
                   <button
                     type="button"
                     onClick={closeModal}
-                    style={{ background: 'rgba(255, 255, 255, 0.05)', border: 'none', color: '#a6aec7', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
+                    style={{ background: 'rgba(255, 255, 255, 0.05)', border: 'none', color: '#a6aec7', borderRadius: '10px', padding: '12px', fontSize: '13px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
                   >
                     關閉
                   </button>
                   <button
                     type="button"
                     onClick={handleStartEdit}
-                    style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
+                    style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '10px', padding: '12px', fontSize: '13px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
                   >
                     ✏️ 編輯
                   </button>
@@ -454,7 +440,7 @@ export default function DetailsTab({
                       onDeleteExpense(selectedRecord.record.id);
                       closeModal();
                     }}
-                    style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', color: '#f87171', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
+                    style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', color: '#f87171', borderRadius: '10px', padding: '12px', fontSize: '13px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
                   >
                     刪除記錄
                   </button>
