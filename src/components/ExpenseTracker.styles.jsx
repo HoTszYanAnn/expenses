@@ -214,8 +214,16 @@ export const Select = styled.select`
   font-family: inherit;
 
   @media (max-width: 520px) {
-    font-size: 13px;
-    padding: 12px 10px;
+    /* 🌟 高級欺騙術：底層宣告 16px 防止 iOS 亂放大 */
+    font-size: 16px;
+    
+    /* 🌟 視覺縮放：利用 scale 將佢縮小到大約 12.8px 的高質感大小 */
+    width: 125%; 
+    transform: scale(0.8);
+    transform-origin: left center; /* 確保縮放對齊左邊，不爆 Layout */
+    
+    padding: 8px 6px;
+    margin-right: -25%; /* 補償 width 放大 125% 造成的排版推移 */
   }
 `;
 
@@ -233,11 +241,18 @@ export const TextInput = styled.input`
   font-family: inherit;
 
   @media (max-width: 520px) {
-    font-size: 13px;
-    padding: 12px 14px;
+    /* 🌟 高級欺騙術：物理上是 16px，iOS Safari 極之滿意 */
+    font-size: 16px;
+    
+    /* 🌟 視覺縮放：縮回極簡風該有的細緻度 */
+    width: 125%;
+    transform: scale(0.8);
+    transform-origin: left center;
+    
+    padding: 8px 12px;
+    margin-right: -25%; /* 補償排版差額 */
   }
 `;
-
 export const ColorInput = styled.input`
   background-color: #0b0f18;
   border: 1px solid rgba(255, 255, 255, 0.08);

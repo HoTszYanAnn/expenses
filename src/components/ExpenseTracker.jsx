@@ -28,7 +28,6 @@ export default function ExpenseTracker() {
   const [expenseForm, setExpenseForm] = useState(initialExpenseForm);
   const [settingsForm, setSettingsForm] = useState(initialSettingsForm);
 
-  // 🧠 初始化讀取核心基本設定
   useEffect(() => {
     let isMounted = true;
 
@@ -64,10 +63,9 @@ export default function ExpenseTracker() {
     };
   }, []);
 
-  // ⚡ 核心功能：當用戶「切換 Tab」嘅時候，即時向 Supabase 重新獲取開支紀錄清單
   useEffect(() => {
     fetchExpenses();
-  }, [view]); // 💡 監聽 view，一轉 Tab 就自動 Call 數據，保持實時無縫重新整理
+  }, [view]);
 
   useEffect(() => {
     if (mainCat && categories[mainCat]) {
@@ -140,7 +138,8 @@ export default function ExpenseTracker() {
     if (!error) {
       setExpenseForm(initialExpenseForm);
       await fetchExpenses();
-      window.alert('✅ 記帳成功！');
+      // 🌟 修正點：拿走綠色剔號，改用耀藍色星號
+      window.alert('🔹 記帳成功！');
     }
   };
 
@@ -148,6 +147,20 @@ export default function ExpenseTracker() {
     if (!window.confirm('確定要刪除呢筆帳目？')) return;
     const { error } = await supabase.from('expenses').delete().eq('id', id);
     if (!error) fetchExpenses();
+  };
+
+  const handleUpdateExpense = async (id, updatedPayload) => {
+    const { error } = await supabase
+      .from('expenses')
+      .update(updatedPayload)
+      .eq('id', id);
+
+    if (!error) {
+      await fetchExpenses();
+      window.alert('🔹 帳目修改成功！');
+    } else {
+      window.alert('修改失敗，請檢查輸入內容。');
+    }
   };
 
   const handleAddCategory = async (event) => {
@@ -201,28 +214,14 @@ export default function ExpenseTracker() {
 
       if (expError) throw expError;
 
-      window.alert('✅ 分類更新成功，歷史流水帳已全面同步！');
+      window.alert('🔹 分類更新成功，歷史流水帳已全面同步！');
       await reloadCategories();
       await fetchExpenses();
     } catch (error) {
       console.error('❌ 更新失敗:', error);
     }
   };
-// ⚡ 核心功能：直接修改單筆記帳紀錄
-  const handleUpdateExpense = async (id, updatedPayload) => {
-    const { error } = await supabase
-      .from('expenses')
-      .update(updatedPayload)
-      .eq('id', id);
 
-    if (!error) {
-      await fetchExpenses(); // 重新拉取最新列表，自動觸發畫面渲染
-      window.alert('✅ 帳目修改成功！');
-    } else {
-      console.error('❌ 修改帳目失敗:', error);
-      window.alert('修改失敗，請檢查輸入內容。');
-    }
-  };
   return (
     <S.AppShell>
       <S.Nav>
@@ -257,13 +256,13 @@ export default function ExpenseTracker() {
         />
       )}
 
-    {view === 'details' && (
+      {view === 'details' && (
         <DetailsTab
           groupedRecords={groupedRecords}
           members={members}
-          categories={categories} /* ⚡ 傳入全量分類，用作二級連動選單 */
+          categories={categories}
           onDeleteExpense={handleDeleteExpense}
-          onUpdateExpense={handleUpdateExpense} /* ⚡ 傳入異步更新操作 */
+          onUpdateExpense={handleUpdateExpense}
           findMember={findMember}
           formatCurrency={formatCurrency}
         />

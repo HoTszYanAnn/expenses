@@ -25,7 +25,6 @@ export default function MainTab({
 
   const [showCustomDateTime, setShowCustomDateTime] = useState(false);
 
-  // 🔒 動態獲取當前最新的「今天」與「現在時間」限制未來
   const { maxDate, maxTime } = useMemo(() => {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -40,7 +39,6 @@ export default function MainTab({
     };
   }, [expenseForm.expenseDate]);
 
-  // 🧠 核心記憶功能一：自動 Pre-select 上一次的選擇
   useEffect(() => {
     const lastMember = localStorage.getItem('last_expense_member_id');
     const lastMainCat = localStorage.getItem('last_expense_main_cat');
@@ -59,7 +57,6 @@ export default function MainTab({
     }
   }, [members, categories]);
 
-  // 🧠 核心記憶功能二：加錢時寫入記憶
   const handleAddExpenseWithMemory = (e) => {
     e.preventDefault();
     localStorage.setItem('last_expense_member_id', selectedMember);
@@ -127,7 +124,7 @@ export default function MainTab({
     month: 'long',
   });
 
-  const minimalColors = ['#f88aa5', '#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#22d3ee', '#e2e8f0'];
+  const minimalColors = ['#f88aa5', '#a78bfa', '#60a5fa', '#f87171', '#fbbf24', '#22d3ee', '#e2e8f0'];
 
   const getCategoryColor = (index, opacity = 1) => {
     const hex = minimalColors[index % minimalColors.length].replace('#', '');
@@ -228,9 +225,7 @@ export default function MainTab({
 
   return (
     <>
-      {/* 記帳密實表單 */}
       <S.Form onSubmit={handleAddExpenseWithMemory} style={{ gap: '5px', marginTop: '0' }}>
-        {/* 🌟 修正點：拿走了 autoFocus 屬性，防堵 iOS 頁面切換時自動拉起鍵盤爆 UI */}
         <S.InputAmount
           name="amount"
           type="number"
@@ -242,7 +237,7 @@ export default function MainTab({
           inputMode="decimal"
         />
 
-        {/* 第一行：Ppl + Cat + Sub Cat */}
+        {/* 第一行 */}
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '5px', width: '100%' }}>
           <S.Select
             value={selectedMember}
@@ -273,7 +268,7 @@ export default function MainTab({
           </S.Select>
         </div>
 
-        {/* 第二行：Remarks + Save Button */}
+        {/* 第二行 */}
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '5px', width: '100%', alignItems: 'center' }}>
           <S.TextInput
             name="note"
@@ -288,11 +283,12 @@ export default function MainTab({
           </S.Button>
         </div>
 
-        {/* 智能日期時間一行過選擇列 */}
+        {/* 日期選擇列 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <S.QuickDateTimeBadge type="button" isCustom={isCustomTimeActive} onClick={() => setShowCustomDateTime(!showCustomDateTime)}>
-              <span style={{ fontSize: '8px', color: isCustomTimeActive ? '#ff8aa5' : '#34d399' }}>●</span>
+              {/* 🌟 修正點：原本狀態小綠點改為天際藍色 (#3b82f6) */}
+              <span style={{ fontSize: '8px', color: isCustomTimeActive ? '#ff8aa5' : '#3b82f6' }}>●</span>
               {isCustomTimeActive ? '已補錄過去歷史帳目' : '現在時間 (點擊補填舊帳)'}
             </S.QuickDateTimeBadge>
 
@@ -322,7 +318,6 @@ export default function MainTab({
       {filteredRecords.length > 0 ? (
         <S.StatsContainer style={{ marginTop: '0', gap: '10px' }}>
           
-          {/* 本月支出總計 */}
           <S.TotalBlock style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '14px', borderRadius: '14px', textAlign: 'center', gap: '2px' }}>
             <S.StatsLabel style={{ fontSize: '11px', color: '#5c6679', letterSpacing: '0.05em' }}>本月支出總計</S.StatsLabel>
             <S.TotalText style={{ fontSize: '26px', fontWeight: '700', color: '#fff', letterSpacing: '-0.02em' }}>{formatCurrency(monthlyStats.total)}</S.TotalText>
@@ -359,15 +354,10 @@ export default function MainTab({
 
                 return (
                   <S.CalendarCell key={idx} active={hasTotal} style={{ 
-                    minHeight: '52px', 
-                    padding: '4px 1px', 
-                    borderRadius: '6px', 
+                    minHeight: '52px', padding: '4px 1px', borderRadius: '6px', 
                     background: hasTotal ? 'rgba(255, 255, 255, 0.02)' : 'transparent', 
                     border: hasTotal ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(255,255,255,0.01)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
+                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center'
                   }}>
                     {day ? (
                       <>
@@ -376,15 +366,9 @@ export default function MainTab({
                         </S.CalendarDayNumber>
                         {hasTotal ? (
                           <S.CalendarAmount style={{ 
-                            color: textColor,
-                            fontSize: '14px', 
-                            fontWeight: fontWeight,
-                            width: '100%', 
-                            textAlign: 'center', 
-                            overflow: 'hidden', 
-                            whiteSpace: 'nowrap',
-                            letterSpacing: '-0.04em', 
-                            fontFamily: 'monospace'
+                            color: textColor, fontSize: '14px', fontWeight: fontWeight,
+                            width: '100%', textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap',
+                            letterSpacing: '-0.04em', fontFamily: 'monospace'
                           }}>
                             {formatCompactAmount(total)}
                           </S.CalendarAmount>
@@ -431,13 +415,8 @@ export default function MainTab({
                           key={cat}
                           darkText={false}
                           style={{ 
-                            width: `${percent}%`, 
-                            backgroundColor: color,
-                            height: '100%',
-                            fontSize: '9px',
-                            fontWeight: '600',
-                            color: '#000',
-                            textShadow: 'none'
+                            width: `${percent}%`, backgroundColor: color, height: '100%',
+                            fontSize: '9px', fontWeight: '600', color: '#000', textShadow: 'none'
                           }}
                           title={`${cat}: ${formatCurrency(catAmount, 0)}`}
                         >
@@ -459,7 +438,6 @@ export default function MainTab({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               
-              {/* 雙方默契比例槓桿條 */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#8a94aa', marginBottom: '4px' }}>
                   {members.map((m) => {
@@ -483,7 +461,6 @@ export default function MainTab({
                 </div>
               </div>
 
-              {/* 本月吃金大戶排行 */}
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '8px', marginTop: '2px' }}>
                 <div style={{ fontSize: '11px', color: '#5c6679', marginBottom: '6px' }}>
                   錢去咗邊 (消費最高分類)

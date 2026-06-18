@@ -1,17 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import * as S from './ExpenseTracker.styles.jsx';
 
-export default function DetailsTab({ 
-  groupedRecords = [], 
-  members = [], 
-  categories = {}, 
-  onDeleteExpense, 
-  onUpdateExpense, 
-  findMember, 
-  formatCurrency 
+export default function DetailsTab({
+  groupedRecords = [],
+  members = [],
+  categories = {},
+  onDeleteExpense,
+  onUpdateExpense,
+  findMember,
+  formatCurrency
 }) {
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [isEditing, setIsEditing] = useState(false); 
+  const [isEditing, setIsEditing] = useState(false);
 
   // 📦 編輯表單暫存狀態
   const [editForm, setEditForm] = useState({
@@ -34,7 +34,6 @@ export default function DetailsTab({
     setIsEditing(false);
   };
 
-  // 🧠 當開啟彈窗時，將原始資料塞入暫存 Form
   const handleStartEdit = () => {
     if (!selectedRecord) return;
     const { record } = selectedRecord;
@@ -57,7 +56,6 @@ export default function DetailsTab({
     setIsEditing(true);
   };
 
-  // ⚡ 修正點：通用 Input/Select 改變事件，解決下拉選單卡死揀唔到嘅問題
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setEditForm(prev => ({
@@ -66,18 +64,16 @@ export default function DetailsTab({
     }));
   };
 
-  // ⚡ 修正點：當主分類改變，除咗改 main_category，仲要即時強制連動轉埋 sub_category
   const handleMainCatChange = (e) => {
     const nextMain = e.target.value;
     const subList = categories[nextMain] || [];
     setEditForm(prev => ({
       ...prev,
       main_category: nextMain,
-      sub_category: subList[0] || '' // 預設跳去新主分類嘅第一個子分類
+      sub_category: subList[0] || ''
     }));
   };
 
-  // 💾 送出更新
   const handleSaveUpdate = async () => {
     if (!editForm.amount || Number(editForm.amount) <= 0) {
       window.alert('請輸入有效金額！');
@@ -160,12 +156,12 @@ export default function DetailsTab({
       </S.SectionTitle>
 
       {/* 💊 滑動藥丸列 */}
-      <div 
+      <div
         style={{
           display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', overflowX: 'auto', overflowY: 'hidden',
           gap: '6px', width: '100%', marginBottom: '14px', paddingBottom: '8px', touchAction: 'pan-x',
           WebkitOverflowScrolling: 'touch', whiteSpace: 'nowrap'
-        }} 
+        }}
         hide-scrollbar="true"
       >
         <button
@@ -208,9 +204,11 @@ export default function DetailsTab({
             onClick={() => setActiveCategoryFilter(activeCategoryFilter === cat ? null : cat)}
             style={{
               display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', padding: '6px 14px', fontSize: '11px', borderRadius: '20px',
-              border: activeCategoryFilter === cat ? '1px solid #34d399' : '1px solid transparent',
-              background: activeCategoryFilter === cat ? 'rgba(52, 211, 153, 0.12)' : 'rgba(255,255,255,0.01)',
-              color: activeCategoryFilter === cat ? '#34d399' : '#8a94aa', fontWeight: activeCategoryFilter === cat ? '600' : '500', cursor: 'pointer', flexShrink: 0
+              border: activeCategoryFilter === cat ? '1px solid #60a5fa' : '1px solid transparent',
+              background: activeCategoryFilter === cat ? 'rgba(96, 165, 250, 0.12)' : 'rgba(255,255,255,0.01)',
+              color: activeCategoryFilter === cat ? '#60a5fa' : '#8a94aa',
+              fontWeight: activeCategoryFilter === cat ? '600' : '500',
+              cursor: 'pointer', flexShrink: 0
             }}
           >
             {cat}
@@ -267,8 +265,8 @@ export default function DetailsTab({
       {/* Modal 彈窗 */}
       {selectedRecord && (
         <S.ModalOverlay onClick={closeModal} style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}>
-          <S.ModalCard style={{ backgroundColor: '#10151f', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '24px 20px' }} onClick={(e) => e.stopPropagation()}>
-            
+          <S.ModalCard style={{ backgroundColor: '#10151f', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '24px 16px', boxSizing: 'border-box' }} onClick={(e) => e.stopPropagation()}>
+
             <S.ModalHeader style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
               <div style={{ color: '#fff', fontWeight: '600', fontSize: '15px', letterSpacing: '0.05em' }}>
                 {isEditing ? '✏️ 編輯記帳紀錄' : '交易明細'}
@@ -281,13 +279,13 @@ export default function DetailsTab({
                 </div>
               )}
             </S.ModalHeader>
-            
+
             <S.ModalBody style={{ gap: '12px', display: 'flex', flexDirection: 'column' }}>
               {isEditing ? (
                 /* ---------------- 📝 編輯狀態表單 ---------------- */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-                  
-                  {/* 金額修改 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
+
+                  {/* 金額修改 (🌟 手機強制 16px 核心阻擊 Auto-zoom) */}
                   <div>
                     <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>金額</div>
                     <S.TextInput
@@ -297,43 +295,44 @@ export default function DetailsTab({
                       inputMode="decimal"
                       value={editForm.amount}
                       onChange={handleInputChange}
-                      style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '10px', fontSize: '16px', fontWeight: '600' }}
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '10px', fontSize: '16px', fontWeight: '600' }}
                     />
                   </div>
 
-                  {/* 三件套一列：Ppl + Cat + SubCat */}
-                  <div style={{ display: 'flex', gap: '5px', width: '100%' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>記帳人</div>
-                      <S.Select
-                        name="member_id"
-                        value={editForm.member_id}
-                        onChange={handleInputChange}
-                        style={{ width: '100%', height: '36px', padding: '0 6px', fontSize: '12px', borderRadius: '8px' }}
-                      >
-                        {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                      </S.Select>
-                    </div>
+                  {/* 記帳人 (一列過) */}
+                  <div>
+                    <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>記帳人</div>
+                    <S.Select
+                      name="member_id"
+                      value={editForm.member_id}
+                      onChange={handleInputChange}
+                      style={{ width: '100%', height: '40px', padding: '0 10px', fontSize: '16px', borderRadius: '10px' }}
+                    >
+                      {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </S.Select>
+                  </div>
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* 分類二連彈 (並排) */}
+                  <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                    <div style={{ width: '50%' }}>
                       <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>主分類</div>
                       <S.Select
                         name="main_category"
                         value={editForm.main_category}
-                        onChange={handleMainCatChange} // ⚡ 獨立處理：主分類變動時自動刷掉子分類
-                        style={{ width: '100%', height: '36px', padding: '0 6px', fontSize: '12px', borderRadius: '8px' }}
+                        onChange={handleMainCatChange}
+                        style={{ width: '100%', height: '40px', padding: '0 8px', fontSize: '16px', borderRadius: '10px' }}
                       >
                         {Object.keys(categories).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                       </S.Select>
                     </div>
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ width: '50%' }}>
                       <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>子分類</div>
                       <S.Select
                         name="sub_category"
                         value={editForm.sub_category}
-                        onChange={handleInputChange} // ⚡ 已補上 onChange，解決選單鎖死問題
-                        style={{ width: '100%', height: '36px', padding: '0 6px', fontSize: '12px', borderRadius: '8px' }}
+                        onChange={handleInputChange}
+                        style={{ width: '100%', height: '40px', padding: '0 8px', fontSize: '16px', borderRadius: '10px' }}
                       >
                         {(categories[editForm.main_category] || []).map(sub => (
                           <option key={sub} value={sub}>{sub}</option>
@@ -351,13 +350,13 @@ export default function DetailsTab({
                       placeholder="無備忘項目..."
                       value={editForm.note}
                       onChange={handleInputChange}
-                      style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '10px', fontSize: '12px' }}
+                      style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '10px', fontSize: '16px' }}
                     />
                   </div>
 
-                  {/* 日期與時間 */}
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <div style={{ flex: 1 }}>
+                  {/* 日期與時間 完美並排版 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', boxSizing: 'border-box', gap: '8px' }}>
+                    <div style={{ width: '48%', boxSizing: 'border-box' }}>
                       <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>日期</div>
                       <S.TextInput
                         name="date"
@@ -365,10 +364,10 @@ export default function DetailsTab({
                         value={editForm.date}
                         onChange={handleInputChange}
                         onClick={(e) => e.target.showPicker?.()}
-                        style={{ width: '100%', height: '36px', padding: '0 8px', fontSize: '11px', borderRadius: '8px' }}
+                        style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '8px', boxSizing: 'border-box' }}
                       />
                     </div>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ width: '48%', boxSizing: 'border-box' }}>
                       <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>時間</div>
                       <S.TextInput
                         name="time"
@@ -376,7 +375,7 @@ export default function DetailsTab({
                         value={editForm.time}
                         onChange={handleInputChange}
                         onClick={(e) => e.target.showPicker?.()}
-                        style={{ width: '100%', height: '36px', padding: '0 8px', fontSize: '11px', borderRadius: '8px' }}
+                        style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '8px', boxSizing: 'border-box' }}
                       />
                     </div>
                   </div>
@@ -389,7 +388,7 @@ export default function DetailsTab({
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedRecord.member.color }} />
                     <span style={{ color: '#e5e7eb', fontSize: '12px', fontWeight: '500' }}>{selectedRecord.member.name}</span>
                   </div>
-                  
+
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ color: '#5c6679', fontSize: '11px', letterSpacing: '0.02em' }}>分類</div>
                     <div style={{ color: '#fff', fontSize: '14px', fontWeight: '500', marginTop: '2px' }}>
@@ -413,8 +412,8 @@ export default function DetailsTab({
                 </div>
               )}
             </S.ModalBody>
-            
-            {/* 下方按鈕動作組 */}
+
+            {/* 下方按鈕 */}
             <S.ModalFooter style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
               {isEditing ? (
                 <>
@@ -428,7 +427,7 @@ export default function DetailsTab({
                   <button
                     type="button"
                     onClick={handleSaveUpdate}
-                    style={{ background: '#34d399', border: 'none', color: '#000', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '700', flex: 1 }}
+                    style={{ background: '#3b82f6', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '700', flex: 1 }}
                   >
                     儲存修改
                   </button>
