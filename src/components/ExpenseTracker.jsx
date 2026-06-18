@@ -208,7 +208,21 @@ export default function ExpenseTracker() {
       console.error('❌ 更新失敗:', error);
     }
   };
+// ⚡ 核心功能：直接修改單筆記帳紀錄
+  const handleUpdateExpense = async (id, updatedPayload) => {
+    const { error } = await supabase
+      .from('expenses')
+      .update(updatedPayload)
+      .eq('id', id);
 
+    if (!error) {
+      await fetchExpenses(); // 重新拉取最新列表，自動觸發畫面渲染
+      window.alert('✅ 帳目修改成功！');
+    } else {
+      console.error('❌ 修改帳目失敗:', error);
+      window.alert('修改失敗，請檢查輸入內容。');
+    }
+  };
   return (
     <S.AppShell>
       <S.Nav>
@@ -243,11 +257,13 @@ export default function ExpenseTracker() {
         />
       )}
 
-      {view === 'details' && (
+    {view === 'details' && (
         <DetailsTab
           groupedRecords={groupedRecords}
           members={members}
+          categories={categories} /* ⚡ 傳入全量分類，用作二級連動選單 */
           onDeleteExpense={handleDeleteExpense}
+          onUpdateExpense={handleUpdateExpense} /* ⚡ 傳入異步更新操作 */
           findMember={findMember}
           formatCurrency={formatCurrency}
         />

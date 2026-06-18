@@ -1,17 +1,109 @@
 import React, { useState, useMemo } from 'react';
 import * as S from './ExpenseTracker.styles.jsx';
 
-export default function DetailsTab({ groupedRecords = [], members = [], onDeleteExpense, findMember, formatCurrency }) {
+export default function DetailsTab({ 
+  groupedRecords = [], 
+  members = [], 
+  categories = {}, 
+  onDeleteExpense, 
+  onUpdateExpense, 
+  findMember, 
+  formatCurrency 
+}) {
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const [isEditing, setIsEditing] = useState(false); 
 
-  // 💊 藥丸選單過濾與排序狀態 (改為預設 null)
+  // 📦 編輯表單暫存狀態
+  const [editForm, setEditForm] = useState({
+    amount: '',
+    member_id: '',
+    main_category: '',
+    sub_category: '',
+    note: '',
+    date: '',
+    time: ''
+  });
+
+  // 💊 藥丸選單過濾與排序狀態
   const [activeMemberFilter, setActiveMemberFilter] = useState(null);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState(null);
   const [isSortByAmount, setIsSortByAmount] = useState(false);
 
-  const closeModal = () => setSelectedRecord(null);
+  const closeModal = () => {
+    setSelectedRecord(null);
+    setIsEditing(false);
+  };
 
-  // 🧠 1. 動態提取當前畫面上「有開銷嘅主分類清單」用作動態生成分類藥丸
+  // 🧠 當開啟彈窗時，將原始資料塞入暫存 Form
+  const handleStartEdit = () => {
+    if (!selectedRecord) return;
+    const { record } = selectedRecord;
+    const dt = new Date(record.created_at);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const min = String(dt.getMinutes()).padStart(2, '0');
+
+    setEditForm({
+      amount: record.amount,
+      member_id: record.member_id.toString(),
+      main_category: record.main_category,
+      sub_category: record.sub_category,
+      note: record.note || '',
+      date: `${yyyy}-${mm}-${dd}`,
+      time: `${hh}:${min}`
+    });
+    setIsEditing(true);
+  };
+
+  // ⚡ 修正點：通用 Input/Select 改變事件，解決下拉選單卡死揀唔到嘅問題
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // ⚡ 修正點：當主分類改變，除咗改 main_category，仲要即時強制連動轉埋 sub_category
+  const handleMainCatChange = (e) => {
+    const nextMain = e.target.value;
+    const subList = categories[nextMain] || [];
+    setEditForm(prev => ({
+      ...prev,
+      main_category: nextMain,
+      sub_category: subList[0] || '' // 預設跳去新主分類嘅第一個子分類
+    }));
+  };
+
+  // 💾 送出更新
+  const handleSaveUpdate = async () => {
+    if (!editForm.amount || Number(editForm.amount) <= 0) {
+      window.alert('請輸入有效金額！');
+      return;
+    }
+    if (!editForm.main_category || !editForm.sub_category) {
+      window.alert('請選擇完整主/子分類！');
+      return;
+    }
+
+    const timestamp = new Date(`${editForm.date}T${editForm.time}:00`);
+
+    const updatedPayload = {
+      amount: Number(editForm.amount),
+      member_id: Number(editForm.member_id),
+      main_category: editForm.main_category,
+      sub_category: editForm.sub_category,
+      note: editForm.note.trim(),
+      created_at: timestamp.toISOString()
+    };
+
+    await onUpdateExpense(selectedRecord.record.id, updatedPayload);
+    closeModal();
+  };
+
+  // 🧠 動態生成分類藥丸
   const activeCategories = useMemo(() => {
     const cats = new Set();
     groupedRecords.forEach(group => {
@@ -24,26 +116,20 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
     return Array.from(cats).sort();
   }, [groupedRecords]);
 
-  // ⚡ 2. 核心處理：根據藥丸選取狀態，重新運算及過濾要顯示的數據結構
+  // ⚡ 數據過濾
   const filteredGroupedRecords = useMemo(() => {
     if (isSortByAmount) {
       const allItems = [];
       groupedRecords.forEach(group => {
         if (group && Array.isArray(group.items)) {
           group.items.forEach(item => {
-            // 💡 如果 activeMemberFilter 有值，就必須符合；為 null 就代表 pass（全員）
             if (activeMemberFilter !== null && item.member_id != activeMemberFilter) return;
-
-            // 💡 如果 activeCategoryFilter 有值，就必須符合；為 null 就代表 pass（全部分類）
             if (activeCategoryFilter !== null && String(item.main_category).trim() !== String(activeCategoryFilter).trim()) return;
-
             allItems.push(item);
           });
         }
       });
-
       allItems.sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
-
       return allItems.length > 0 ? [{
         date: '🔥 全月大額排行精算',
         total: allItems.reduce((sum, item) => sum + Number(item.amount || 0), 0),
@@ -54,23 +140,16 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
     const resultGroups = [];
     groupedRecords.forEach(group => {
       if (!group || !Array.isArray(group.items)) return;
-
       const matchedItems = group.items.filter(item => {
         if (activeMemberFilter !== null && item.member_id != activeMemberFilter) return false;
         if (activeCategoryFilter !== null && String(item.main_category).trim() !== String(activeCategoryFilter).trim()) return false;
         return true;
       });
-
       if (matchedItems.length > 0) {
         const newTotal = matchedItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-        resultGroups.push({
-          ...group,
-          total: newTotal,
-          items: matchedItems
-        });
+        resultGroups.push({ ...group, total: newTotal, items: matchedItems });
       }
     });
-
     return resultGroups;
   }, [groupedRecords, activeMemberFilter, activeCategoryFilter, isSortByAmount]);
 
@@ -80,41 +159,23 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
         歷史流水帳明細
       </S.SectionTitle>
 
-      {/* 💊 📱 左右橫向滑動全功能藥丸列 (拿走了成員與分類的「全部」按鈕) */}
+      {/* 💊 滑動藥丸列 */}
       <div 
         style={{
-          display: 'flex',
-          flexDirection: 'row',
-          flexWrap: 'nowrap',
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          gap: '6px',
-          width: '100%',
-          marginBottom: '14px',
-          paddingBottom: '8px',
-          touchAction: 'pan-x',
-          WebkitOverflowScrolling: 'touch',
-          whiteSpace: 'nowrap'
+          display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', overflowX: 'auto', overflowY: 'hidden',
+          gap: '6px', width: '100%', marginBottom: '14px', paddingBottom: '8px', touchAction: 'pan-x',
+          WebkitOverflowScrolling: 'touch', whiteSpace: 'nowrap'
         }} 
         hide-scrollbar="true"
       >
-        {/* A. 排序切換藥丸 */}
         <button
           type="button"
           onClick={() => setIsSortByAmount(!isSortByAmount)}
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            whiteSpace: 'nowrap',
-            padding: '6px 14px',
-            fontSize: '11px',
-            borderRadius: '20px',
+            display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', padding: '6px 14px', fontSize: '11px', borderRadius: '20px',
             border: isSortByAmount ? '1px solid rgba(248, 113, 113, 0.4)' : '1px solid rgba(255,255,255,0.04)',
             background: isSortByAmount ? 'rgba(248, 113, 113, 0.1)' : 'rgba(255,255,255,0.02)',
-            color: isSortByAmount ? '#f87171' : '#8a94aa',
-            fontWeight: isSortByAmount ? '700' : '500',
-            cursor: 'pointer',
-            flexShrink: 0
+            color: isSortByAmount ? '#f87171' : '#8a94aa', fontWeight: isSortByAmount ? '700' : '500', cursor: 'pointer', flexShrink: 0
           }}
         >
           {isSortByAmount ? '🔥 大額優先' : '🕒 時間排序'}
@@ -122,25 +183,16 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
 
         <span style={{ width: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 2px', flexShrink: 0 }} />
 
-        {/* B. 成員切換藥丸 */}
         {members.map(m => (
           <button
             key={m.id}
             type="button"
             onClick={() => setActiveMemberFilter(activeMemberFilter == m.id ? null : m.id)}
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              whiteSpace: 'nowrap',
-              padding: '6px 14px',
-              fontSize: '11px',
-              borderRadius: '20px',
+              display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', padding: '6px 14px', fontSize: '11px', borderRadius: '20px',
               border: activeMemberFilter == m.id ? `1px solid ${m.color}` : '1px solid transparent',
               background: activeMemberFilter == m.id ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.01)',
-              color: activeMemberFilter == m.id ? m.color : '#8a94aa',
-              fontWeight: activeMemberFilter == m.id ? '600' : '500',
-              cursor: 'pointer',
-              flexShrink: 0
+              color: activeMemberFilter == m.id ? m.color : '#8a94aa', fontWeight: activeMemberFilter == m.id ? '600' : '500', cursor: 'pointer', flexShrink: 0
             }}
           >
             {m.name}
@@ -149,25 +201,16 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
 
         <span style={{ width: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 2px', flexShrink: 0 }} />
 
-        {/* C. 主分類過濾藥丸 */}
         {activeCategories.map(cat => (
           <button
             key={cat}
             type="button"
             onClick={() => setActiveCategoryFilter(activeCategoryFilter === cat ? null : cat)}
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              whiteSpace: 'nowrap',
-              padding: '6px 14px',
-              fontSize: '11px',
-              borderRadius: '20px',
+              display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', padding: '6px 14px', fontSize: '11px', borderRadius: '20px',
               border: activeCategoryFilter === cat ? '1px solid #34d399' : '1px solid transparent',
               background: activeCategoryFilter === cat ? 'rgba(52, 211, 153, 0.12)' : 'rgba(255,255,255,0.01)',
-              color: activeCategoryFilter === cat ? '#34d399' : '#8a94aa',
-              fontWeight: activeCategoryFilter === cat ? '600' : '500',
-              cursor: 'pointer',
-              flexShrink: 0
+              color: activeCategoryFilter === cat ? '#34d399' : '#8a94aa', fontWeight: activeCategoryFilter === cat ? '600' : '500', cursor: 'pointer', flexShrink: 0
             }}
           >
             {cat}
@@ -224,72 +267,206 @@ export default function DetailsTab({ groupedRecords = [], members = [], onDelete
       {/* Modal 彈窗 */}
       {selectedRecord && (
         <S.ModalOverlay onClick={closeModal} style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}>
-          <S.ModalCard style={{ backgroundColor: '#0b0f19', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px 20px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-            <S.ModalHeader style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-              <div style={{ color: '#fff', fontWeight: '600', fontSize: '15px', letterSpacing: '0.05em' }}>交易明細</div>
-              <div style={{ color: '#5c6679', fontSize: '11px', marginTop: '4px' }}>
-                {new Date(selectedRecord.record.created_at).toLocaleString('zh-HK', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </div>
-            </S.ModalHeader>
+          <S.ModalCard style={{ backgroundColor: '#10151f', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '24px 20px' }} onClick={(e) => e.stopPropagation()}>
             
-            <S.ModalBody style={{ gap: '14px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '20px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedRecord.member.color }} />
-                <span style={{ color: '#e5e7eb', fontSize: '12px', fontWeight: '500' }}>{selectedRecord.member.name}</span>
+            <S.ModalHeader style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+              <div style={{ color: '#fff', fontWeight: '600', fontSize: '15px', letterSpacing: '0.05em' }}>
+                {isEditing ? '✏️ 編輯記帳紀錄' : '交易明細'}
               </div>
-              
-              <div style={{ marginTop: '4px' }}>
-                <div style={{ color: '#5c6679', fontSize: '11px', letterSpacing: '0.02em' }}>分類</div>
-                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '500', marginTop: '2px' }}>
-                  {selectedRecord.record.main_category} · {selectedRecord.record.sub_category}
-                </div>
-              </div>
-
-              {selectedRecord.record.note && (
-                <div>
-                  <div style={{ color: '#5c6679', fontSize: '11px', letterSpacing: '0.02em' }}>備註</div>
-                  <div style={{ color: '#e5e7eb', fontSize: '13px', marginTop: '2px', fontStyle: 'italic' }}>「 {selectedRecord.record.note} 」</div>
+              {!isEditing && (
+                <div style={{ color: '#5c6679', fontSize: '11px', marginTop: '4px' }}>
+                  {new Date(selectedRecord.record.created_at).toLocaleString('zh-HK', {
+                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                  })}
                 </div>
               )}
+            </S.ModalHeader>
+            
+            <S.ModalBody style={{ gap: '12px', display: 'flex', flexDirection: 'column' }}>
+              {isEditing ? (
+                /* ---------------- 📝 編輯狀態表單 ---------------- */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                  
+                  {/* 金額修改 */}
+                  <div>
+                    <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>金額</div>
+                    <S.TextInput
+                      name="amount"
+                      type="number"
+                      step="any"
+                      inputMode="decimal"
+                      value={editForm.amount}
+                      onChange={handleInputChange}
+                      style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '10px', fontSize: '16px', fontWeight: '600' }}
+                    />
+                  </div>
 
-              <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px', width: '80%' }}>
-                <div style={{ color: '#5c6679', fontSize: '11px', letterSpacing: '0.02em' }}>金額</div>
-                <div style={{ color: '#fff', fontWeight: '700', fontSize: '26px', marginTop: '2px', letterSpacing: '-0.03em' }}>
-                  {formatCurrency(selectedRecord.record.amount)}
+                  {/* 三件套一列：Ppl + Cat + SubCat */}
+                  <div style={{ display: 'flex', gap: '5px', width: '100%' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>記帳人</div>
+                      <S.Select
+                        name="member_id"
+                        value={editForm.member_id}
+                        onChange={handleInputChange}
+                        style={{ width: '100%', height: '36px', padding: '0 6px', fontSize: '12px', borderRadius: '8px' }}
+                      >
+                        {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </S.Select>
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>主分類</div>
+                      <S.Select
+                        name="main_category"
+                        value={editForm.main_category}
+                        onChange={handleMainCatChange} // ⚡ 獨立處理：主分類變動時自動刷掉子分類
+                        style={{ width: '100%', height: '36px', padding: '0 6px', fontSize: '12px', borderRadius: '8px' }}
+                      >
+                        {Object.keys(categories).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                      </S.Select>
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>子分類</div>
+                      <S.Select
+                        name="sub_category"
+                        value={editForm.sub_category}
+                        onChange={handleInputChange} // ⚡ 已補上 onChange，解決選單鎖死問題
+                        style={{ width: '100%', height: '36px', padding: '0 6px', fontSize: '12px', borderRadius: '8px' }}
+                      >
+                        {(categories[editForm.main_category] || []).map(sub => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                      </S.Select>
+                    </div>
+                  </div>
+
+                  {/* 備忘備註 */}
+                  <div>
+                    <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>備忘備註</div>
+                    <S.TextInput
+                      name="note"
+                      type="text"
+                      placeholder="無備忘項目..."
+                      value={editForm.note}
+                      onChange={handleInputChange}
+                      style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '10px', fontSize: '12px' }}
+                    />
+                  </div>
+
+                  {/* 日期與時間 */}
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>日期</div>
+                      <S.TextInput
+                        name="date"
+                        type="date"
+                        value={editForm.date}
+                        onChange={handleInputChange}
+                        onClick={(e) => e.target.showPicker?.()}
+                        style={{ width: '100%', height: '36px', padding: '0 8px', fontSize: '11px', borderRadius: '8px' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: '#8a94aa', fontSize: '11px', marginBottom: '4px' }}>時間</div>
+                      <S.TextInput
+                        name="time"
+                        type="time"
+                        value={editForm.time}
+                        onChange={handleInputChange}
+                        onClick={(e) => e.target.showPicker?.()}
+                        style={{ width: '100%', height: '36px', padding: '0 8px', fontSize: '11px', borderRadius: '8px' }}
+                      />
+                    </div>
+                  </div>
+
                 </div>
-              </div>
+              ) : (
+                /* ---------------- 👁️ 唯讀查閱狀態 ---------------- */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '20px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedRecord.member.color }} />
+                    <span style={{ color: '#e5e7eb', fontSize: '12px', fontWeight: '500' }}>{selectedRecord.member.name}</span>
+                  </div>
+                  
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ color: '#5c6679', fontSize: '11px', letterSpacing: '0.02em' }}>分類</div>
+                    <div style={{ color: '#fff', fontSize: '14px', fontWeight: '500', marginTop: '2px' }}>
+                      {selectedRecord.record.main_category} · {selectedRecord.record.sub_category}
+                    </div>
+                  </div>
+
+                  {selectedRecord.record.note && (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ color: '#5c6679', fontSize: '11px', letterSpacing: '0.02em' }}>備註</div>
+                      <div style={{ color: '#e5e7eb', fontSize: '13px', marginTop: '2px', fontStyle: 'italic' }}>「 {selectedRecord.record.note} 」</div>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px', width: '80%', textAlign: 'center' }}>
+                    <div style={{ color: '#5c6679', fontSize: '11px', letterSpacing: '0.02em' }}>金額</div>
+                    <div style={{ color: '#fff', fontWeight: '700', fontSize: '26px', marginTop: '2px', letterSpacing: '-0.03em' }}>
+                      {formatCurrency(selectedRecord.record.amount)}
+                    </div>
+                  </div>
+                </div>
+              )}
             </S.ModalBody>
             
-            <S.ModalFooter style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '10px', width: '100%' }}>
-              <button
-                type="button"
-                onClick={closeModal}
-                style={{ background: 'rgba(255, 255, 255, 0.05)', border: 'none', color: '#a6aec7', borderRadius: '8px', padding: '10px 20px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1, maxWidth: '120px' }}
-              >
-                關閉
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onDeleteExpense(selectedRecord.record.id);
-                  closeModal();
-                }}
-                style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', color: '#f87171', borderRadius: '8px', padding: '10px 20px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1, maxWidth: '120px' }}
-              >
-                刪除記錄
-              </button>
+            {/* 下方按鈕動作組 */}
+            <S.ModalFooter style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
+              {isEditing ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    style={{ background: 'rgba(255, 255, 255, 0.05)', border: 'none', color: '#a6aec7', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
+                  >
+                    返回
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveUpdate}
+                    style={{ background: '#34d399', border: 'none', color: '#000', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '700', flex: 1 }}
+                  >
+                    儲存修改
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    style={{ background: 'rgba(255, 255, 255, 0.05)', border: 'none', color: '#a6aec7', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
+                  >
+                    關閉
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartEdit}
+                    style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
+                  >
+                    ✏️ 編輯
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeleteExpense(selectedRecord.record.id);
+                      closeModal();
+                    }}
+                    style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', color: '#f87171', borderRadius: '8px', padding: '10px', fontSize: '12px', cursor: 'pointer', fontWeight: '500', flex: 1 }}
+                  >
+                    刪除記錄
+                  </button>
+                </>
+              )}
             </S.ModalFooter>
+
           </S.ModalCard>
         </S.ModalOverlay>
       )}
 
-      {/* 隱藏滾動條微光 CSS */}
       <style>{`
         [hide-scrollbar="true"]::-webkit-scrollbar { display: none !important; }
         [hide-scrollbar="true"] { -ms-overflow-style: none !important; scrollbar-width: none !important; }
