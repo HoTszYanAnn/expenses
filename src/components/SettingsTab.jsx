@@ -2,20 +2,19 @@ import React, { useMemo, useState } from 'react';
 import * as S from './ExpenseTracker.styles.jsx';
 
 export default function SettingsTab({
-  members,
   rawCategories,
   settingsForm,
   onSettingsInput,
-  onAddMember,
-  onDeleteMember,
   onAddCategory,
   onDeleteCategory,
+  onUpdateCategory, // ⚡ 喺外層傳入，負責處理改名、搬移同埋連動更新紀錄
 }) {
   const [sortBy, setSortBy] = useState('date-desc');
-  const [showMemberList, setShowMemberList] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedGroups, setExpandedGroups] = useState({});
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState(null); // 💊 藥丸選取狀態
+  const [editingId, setEditingId] = useState(null); // ✏️ 記錄邊個分類改緊名
+  const [editForm, setEditForm] = useState({ main_category: '', sub_category: '' });
 
+  // 🧠 1. 分類排序處理
   const sortedCategories = useMemo(() => {
     const categoriesToUse = Array.isArray(rawCategories) ? rawCategories : [];
     return [...categoriesToUse].sort((a, b) => {
@@ -33,11 +32,13 @@ export default function SettingsTab({
     });
   }, [rawCategories, sortBy]);
 
+  // 🧠 2. 提取所有現存主分類用嚟整新增下拉清單
   const existingMainCats = useMemo(() => {
     const categoriesToUse = Array.isArray(rawCategories) ? rawCategories : [];
     return Array.from(new Set(categoriesToUse.map((category) => category.main_category).filter(Boolean))).sort((a, b) => a.localeCompare(b));
   }, [rawCategories]);
 
+  // 🧠 3. 將分類分組
   const categoryGroups = useMemo(() => {
     const groups = {};
     sortedCategories.forEach((category) => {
@@ -49,139 +50,130 @@ export default function SettingsTab({
     return groups;
   }, [sortedCategories]);
 
+  // 🧠 4. 基於 💊 Capsule 藥丸過濾顯示嘅主分類
   const visibleGroupKeys = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
-    return Object.keys(categoryGroups).filter((mainCategory) => {
-      if (!keyword) return true;
-      const hasMainMatch = mainCategory.toLowerCase().includes(keyword);
-      const hasSubMatch = categoryGroups[mainCategory].some((item) => (item.sub_category || '').toLowerCase().includes(keyword));
-      return hasMainMatch || hasSubMatch;
-    });
-  }, [categoryGroups, searchTerm]);
+    const keys = Object.keys(categoryGroups);
+    if (!activeCategoryFilter) return keys;
+    return keys.filter(mainCat => mainCat === activeCategoryFilter);
+  }, [categoryGroups, activeCategoryFilter]);
 
-  const toggleGroup = (mainCategory) => {
-    setExpandedGroups((prev) => ({
-      ...prev,
-      [mainCategory]: !(prev[mainCategory] ?? true),
-    }));
+  // ✏️ 啟動編輯狀態
+  const startEdit = (cat) => {
+    setEditingId(cat.id);
+    setEditForm({ main_category: cat.main_category, sub_category: cat.sub_category });
   };
 
-  const isGroupExpanded = (mainCategory) => expandedGroups[mainCategory] ?? true;
+  // 💾 儲存編輯結果（連動埋 Expense 紀錄）
+  const handleSaveEdit = async (id, oldCat) => {
+    if (!editForm.main_category.trim() || !editForm.sub_category.trim()) {
+      window.alert('主分類同子分類都唔可以留空！');
+      return;
+    }
+    
+    // 呼叫外層傳入嘅異步更新功能
+    await onUpdateCategory(id, oldCat, {
+      main_category: editForm.main_category.trim(),
+      sub_category: editForm.sub_category.trim()
+    });
+    
+    setEditingId(null);
+  };
 
   return (
     <S.SettingsContainer style={{ gap: '16px' }}>
       
-      {/* 成員名單區塊 */}
-      <S.SettingsSection>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <S.SectionTitle style={{ margin: 0, fontSize: '14px', color: '#8a94aa', fontWeight: '500' }}>
-            成員名單
-          </S.SectionTitle>
-          <button
-            onClick={() => setShowMemberList(!showMemberList)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#5c6679',
-              cursor: 'pointer',
-              fontSize: '14px',
-              padding: '4px',
-              transition: 'color 0.2s'
-            }}
-          >
-            {showMemberList ? '隱藏 ▼' : '顯示 ▶'}
-          </button>
-        </div>
-
-        {showMemberList && (
-          <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
-            {/* 新增成員 Form */}
-            <S.Row as="form" onSubmit={onAddMember} style={{ gap: '6px', flexDirection: 'row', alignItems: 'center' }}>
-              <S.TextInput
-                name="newMemberName"
-                type="text"
-                placeholder="新成員名..."
-                value={settingsForm?.newMemberName || ''}
-                onChange={onSettingsInput}
-                style={{ padding: '8px 12px', fontSize: '12px', borderRadius: '8px', height: '34px' }}
-              />
-              <S.ColorInput
-                name="newMemberColor"
-                type="color"
-                value={settingsForm?.newMemberColor || '#000000'}
-                onChange={onSettingsInput}
-                style={{ width: '34px', height: '34px', borderRadius: '8px', border: 'none' }}
-              />
-              <S.Button type="submit" style={{ minHeight: '34px', padding: '0 14px', fontSize: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)' }}>
-                加人
-              </S.Button>
-            </S.Row>
-
-            {/* 成員列表清單 */}
-            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              {members?.map((member) => (
-                <S.SettingsItemRow key={member.id} style={{ padding: '6px 4px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: member.color }} />
-                    <span style={{ color: '#e5e7eb', fontSize: '12px', fontWeight: '500' }}>{member.name}</span>
-                  </div>
-                  <S.DeleteButton onClick={() => onDeleteMember(member.id)} style={{ fontSize: '16px', width: '24px', height: '24px' }}>×</S.DeleteButton>
-                </S.SettingsItemRow>
-              ))}
-            </div>
-          </div>
-        )}
-      </S.SettingsSection>
-
-      <S.Divider style={{ borderTop: '1px solid rgba(255, 255, 255, 0.04)', margin: '4px 0' }} />
-
       {/* 自定義分類管理區塊 */}
       <S.SettingsSection>
         <S.SectionTitle style={{ fontSize: '14px', color: '#8a94aa', fontWeight: '500', marginBottom: '12px' }}>
           自定義分類管理
         </S.SectionTitle>
 
-        {/* 工具列：篩選與搜尋 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+        {/* 💊 📱 完美滑動藥丸列：拿走手動輸入，改用 Capsule 橫向快速篩選 */}
+        <div 
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'nowrap',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            gap: '6px',
+            width: '100%',
+            marginBottom: '14px',
+            paddingBottom: '8px',
+            touchAction: 'pan-x',
+            WebkitOverflowScrolling: 'touch',
+            whiteSpace: 'nowrap'
+          }} 
+          hide-scrollbar="true"
+        >
+          <button
+            type="button"
+            onClick={() => setActiveCategoryFilter(null)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              whiteSpace: 'nowrap',
+              padding: '6px 14px',
+              fontSize: '11px',
+              borderRadius: '20px',
+              border: activeCategoryFilter === null ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+              background: activeCategoryFilter === null ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.01)',
+              color: activeCategoryFilter === null ? '#fff' : '#67718a',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
+          >
+            📂 全部顯示
+          </button>
+          
+          {existingMainCats.map(cat => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setActiveCategoryFilter(activeCategoryFilter === cat ? null : cat)}
               style={{
-                backgroundColor: '#0b0f18',
-                border: '1px solid rgba(255,255,255,0.06)',
-                color: '#a6aec7',
-                padding: '6px 10px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                whiteSpace: 'nowrap',
+                padding: '6px 14px',
                 fontSize: '11px',
-                borderRadius: '6px',
+                borderRadius: '20px',
+                border: activeCategoryFilter === cat ? '1px solid #ff8aa5' : '1px solid transparent',
+                background: activeCategoryFilter === cat ? 'rgba(248, 138, 165, 0.12)' : 'rgba(255,255,255,0.01)',
+                color: activeCategoryFilter === cat ? '#ff8aa5' : '#8a94aa',
+                fontWeight: activeCategoryFilter === cat ? '600' : '500',
                 cursor: 'pointer',
+                flexShrink: 0
               }}
             >
-              <option value="date-desc">最新優先</option>
-              <option value="date-asc">最舊優先</option>
-              <option value="alpha-asc">A-Z 升序</option>
-              <option value="alpha-desc">Z-A 降序</option>
-            </select>
-            <span style={{ color: '#5c6679', fontSize: '11px' }}>
-              共 {sortedCategories.length} 個分類
-            </span>
-          </div>
+              {cat}
+            </button>
+          ))}
+        </div>
 
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <S.TextInput
-              name="categorySearch"
-              type="text"
-              placeholder="搜尋分類..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ padding: '8px 12px', fontSize: '12px', borderRadius: '8px', height: '34px', flex: 1 }}
-            />
-            {searchTerm && (
-              <S.Button type="button" onClick={() => setSearchTerm('')} style={{ minHeight: '34px', padding: '0 12px', fontSize: '11px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', color: '#67718a' }}>
-                清除
-              </S.Button>
-            )}
-          </div>
+        {/* 工具列：排序及統計 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{
+              backgroundColor: '#0b0f18',
+              border: '1px solid rgba(255,255,255,0.06)',
+              color: '#a6aec7',
+              padding: '6px 10px',
+              fontSize: '11px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="date-desc">最新優先</option>
+            <option value="date-asc">最舊優先</option>
+            <option value="alpha-asc">A-Z 升序</option>
+            <option value="alpha-desc">Z-A 降序</option>
+          </select>
+          <span style={{ color: '#5c6679', fontSize: '11px' }}>
+            共 {sortedCategories.length} 個子分類組合
+          </span>
         </div>
 
         {/* 新增分類 Form 卡片 */}
@@ -242,49 +234,106 @@ export default function SettingsTab({
           </S.ResponsiveFormRow>
         </div>
 
-        {/* 分類折疊樹狀清單 */}
+        {/* 分類樹狀清單 + ✏️ 內嵌編輯功能 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {visibleGroupKeys.map((mainCategory) => (
             <div key={mainCategory} style={{ border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '8px 10px', background: 'rgba(255,255,255,0.01)' }}>
+              
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div onClick={() => toggleGroup(mainCategory)} style={{ cursor: 'pointer', flex: 1 }}>
+                <div>
                   <span style={{ color: '#fff', fontWeight: '600', fontSize: '13px' }}>{mainCategory}</span>
                   <span style={{ color: '#5c6679', fontSize: '11px', marginLeft: '6px' }}>
                     ({categoryGroups[mainCategory].length})
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(mainCategory)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#5c6679',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    padding: '4px',
-                  }}
-                >
-                  {isGroupExpanded(mainCategory) ? '▼' : '▶'}
-                </button>
               </div>
 
-              {isGroupExpanded(mainCategory) && (
-                <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '2px', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '4px' }}>
-                  {categoryGroups[mainCategory].map((category) => (
-                    <S.SettingsItemRow key={category.id} style={{ padding: '4px 0', borderBottom: 'none' }}>
-                      <S.CatNameContainer>
-                        <span style={{ color: '#a6aec7', fontSize: '12px' }}>{category.sub_category}</span>
-                      </S.CatNameContainer>
-                      <S.DeleteButton onClick={() => onDeleteCategory(category.id)} style={{ fontSize: '16px', width: '22px', height: '22px' }}>×</S.DeleteButton>
+              <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '6px' }}>
+                {categoryGroups[mainCategory].map((category) => {
+                  const isEditing = editingId === category.id;
+                  return (
+                    <S.SettingsItemRow key={category.id} style={{ padding: '6px 0', borderBottom: 'none', flexDirection: isEditing ? 'column' : 'row', alignItems: isEditing ? 'stretch' : 'center', gap: '8px' }}>
+                      
+                      {isEditing ? (
+                        /* ✏️ 手機版極簡內嵌編輯面板 */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <S.TextInput
+                              type="text"
+                              value={editForm.main_category}
+                              placeholder="主分類"
+                              onChange={(e) => setEditForm({ ...editForm, main_category: e.target.value })}
+                              style={{ height: '30px', padding: '4px 8px', fontSize: '11px', borderRadius: '6px' }}
+                            />
+                            <S.TextInput
+                              type="text"
+                              value={editForm.sub_category}
+                              placeholder="子分類"
+                              onChange={(e) => setEditForm({ ...editForm, sub_category: e.target.value })}
+                              style={{ height: '30px', padding: '4px 8px', fontSize: '11px', borderRadius: '6px' }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                            <button 
+                              type="button" 
+                              onClick={() => setEditingId(null)}
+                              style={{ background: 'transparent', border: 'none', color: '#67718a', fontSize: '11px', cursor: 'pointer', padding: '4px 8px' }}
+                            >
+                              取消
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => handleSaveEdit(category.id, category)}
+                              style={{ background: '#ff8aa5', border: 'none', color: '#000', fontSize: '11px', fontWeight: '600', borderRadius: '4px', cursor: 'pointer', padding: '4px 10px' }}
+                            >
+                              儲存更新
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* 顯示原始分類資料 */
+                        <>
+                          <S.CatNameContainer>
+                            <span style={{ color: '#a6aec7', fontSize: '12px' }}>{category.sub_category}</span>
+                          </S.CatNameContainer>
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {/* ✏️ 編輯按鈕 */}
+                            <button
+                              type="button"
+                              onClick={() => startEdit(category)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#5c6679',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                padding: '4px 8px',
+                                transition: 'color 0.2s'
+                              }}
+                            >
+                              ✏️
+                            </button>
+                            {/* ✕ 刪除按鈕 */}
+                            <S.DeleteButton onClick={() => onDeleteCategory(category.id)} style={{ fontSize: '16px', width: '22px', height: '22px' }}>×</S.DeleteButton>
+                          </div>
+                        </>
+                      )}
+
                     </S.SettingsItemRow>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>
       </S.SettingsSection>
+
+      {/* 隱藏滾動條樣式 */}
+      <style>{`
+        [hide-scrollbar="true"]::-webkit-scrollbar { display: none !important; }
+        [hide-scrollbar="true"] { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+      `}</style>
     </S.SettingsContainer>
   );
 }

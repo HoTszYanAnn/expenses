@@ -218,7 +218,42 @@ export default function ExpenseTracker() {
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (!error) reloadCategories();
   };
+  // ⚡ 核心連動更新：改名或移動分類時，一併批次重寫歷史流水帳紀錄
+  const handleUpdateCategory = async (id, oldCategoryData, newCategoryData) => {
+    try {
+      // 1. 先去更新 categories 資料表
+      const { error: catError } = await supabase
+        .from('categories')
+        .update({
+          main_category: newCategoryData.main_category,
+          sub_category: newCategoryData.sub_category
+        })
+        .eq('id', id);
 
+      if (catError) throw catError;
+
+      // 2. 自動發動全量連動：將 expenses 資料表內所有吻合舊分類名嘅紀錄一次過批次重寫！
+      const { error: expError } = await supabase
+        .from('expenses')
+        .update({
+          main_category: newCategoryData.main_category,
+          sub_category: newCategoryData.sub_category
+        })
+        .eq('main_category', oldCategoryData.main_category)
+        .eq('sub_category', oldCategoryData.sub_category);
+
+      if (expError) throw expError;
+
+      window.alert('✅ 分類更變成功，相關歷史流水帳已全面連動同步更新！');
+
+      // 3. 重新讀取核心 State
+      await reloadCategories();
+      await fetchExpenses();
+    } catch (error) {
+      console.error('❌ 更新分類連動失敗:', error);
+      window.alert('更新失敗，請檢查網路連線或資料欄位。');
+    }
+  };
   return (
     <S.AppShell>
       <S.Nav>
@@ -265,14 +300,12 @@ export default function ExpenseTracker() {
 
       {view === 'settings' && (
         <SettingsTab
-          members={members}
           rawCategories={rawCategories}
           settingsForm={settingsForm}
           onSettingsInput={handleSettingsInput}
-          onAddMember={handleAddMember}
-          onDeleteMember={handleDeleteMember}
           onAddCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
+          onUpdateCategory={handleUpdateCategory} /* ⚡ 注入新威力 */
         />
       )}
     </S.AppShell>
