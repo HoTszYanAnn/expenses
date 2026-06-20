@@ -17,6 +17,7 @@ export default function MainTab({
   stats,
   records,
   formatCurrency,
+  rates, // 🌟 由 Supabase 讀取嘅最新匯率
 }) {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -24,6 +25,21 @@ export default function MainTab({
   });
 
   const [showCustomDateTime, setShowCustomDateTime] = useState(false);
+  const [currency, setCurrency] = useState('HKD');
+
+  // 🌟 改為直接對應 Supabase props 嘅最新匯率
+  const currentExchangeRate = useMemo(() => {
+    if (currency === 'HKD') return 1;
+    if (currency === 'JPY') return rates?.JPY || 0.052;
+    if (currency === 'CNY') return rates?.CNY || 1.08;
+    return 1;
+  }, [currency, rates]);
+
+  const liveConvertedHKD = useMemo(() => {
+    const amt = Number(expenseForm.amount);
+    if (!amt || currency === 'HKD') return 0;
+    return amt * currentExchangeRate;
+  }, [expenseForm.amount, currency, currentExchangeRate]);
 
   const { maxDate, maxTime } = useMemo(() => {
     const now = new Date();
@@ -62,7 +78,9 @@ export default function MainTab({
     localStorage.setItem('last_expense_member_id', selectedMember);
     localStorage.setItem('last_expense_main_cat', mainCat);
     localStorage.setItem('last_expense_sub_cat', subCat);
-    onAddExpense(e);
+    
+    onAddExpense(e, { currency, exchangeRate: currentExchangeRate });
+    setCurrency('HKD');
   };
 
   const filteredRecords = useMemo(() => {
@@ -226,16 +244,36 @@ export default function MainTab({
   return (
     <>
       <S.Form onSubmit={handleAddExpenseWithMemory} style={{ gap: '5px', marginTop: '0' }}>
-        <S.InputAmount
-          name="amount"
-          type="number"
-          step="any"
-          placeholder="0.00"
-          value={expenseForm.amount}
-          onChange={onExpenseInput}
-          required
-          inputMode="decimal"
-        />
+        
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '5px', width: '100%' }}>
+          <S.InputAmount
+            name="amount"
+            type="number"
+            step="any"
+            placeholder="0.00"
+            value={expenseForm.amount}
+            onChange={onExpenseInput}
+            required
+            inputMode="decimal"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+          <S.Select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '8px', height: '46px', background: '#0b0f18', border: '1px solid rgba(255,255,255,0.06)', color: '#fff', flex: '0 0 85px', textAlign: 'center', fontWeight: '600' }}
+          >
+            <option value="HKD">HKD ($)</option>
+            <option value="JPY">JPY (¥)</option>
+            <option value="CNY">CNY (¥)</option>
+          </S.Select>
+        </div>
+
+        {currency !== 'HKD' && liveConvertedHKD > 0 && (
+          <div style={{ fontSize: '11px', color: '#3b82f6', padding: '0 4px', width: '100%', display: 'flex', gap: '4px', fontWeight: '600', fontFamily: 'monospace' }}>
+            <span>≈ HKD {liveConvertedHKD.toFixed(2)}</span>
+            <span style={{ color: '#5c6679', fontWeight: '400' }}>(雲端匯率: {currentExchangeRate})</span>
+          </div>
+        )}
 
         {/* 第一行 */}
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '5px', width: '100%' }}>
@@ -287,7 +325,6 @@ export default function MainTab({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <S.QuickDateTimeBadge type="button" isCustom={isCustomTimeActive} onClick={() => setShowCustomDateTime(!showCustomDateTime)}>
-              {/* 🌟 修正點：原本狀態小綠點改為天際藍色 (#3b82f6) */}
               <span style={{ fontSize: '8px', color: isCustomTimeActive ? '#ff8aa5' : '#3b82f6' }}>●</span>
               {isCustomTimeActive ? '已補錄過去歷史帳目' : '現在時間 (點擊補填舊帳)'}
             </S.QuickDateTimeBadge>
@@ -307,6 +344,7 @@ export default function MainTab({
           )}
         </div>
       </S.Form>
+
 
       {/* 月份導航 */}
       <S.MonthNav style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', marginBottom: '8px', gap: '8px', width: '100%' }}>

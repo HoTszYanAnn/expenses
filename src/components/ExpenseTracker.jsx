@@ -21,6 +21,9 @@ export default function ExpenseTracker() {
   const [members, setMembers] = useState([]);
   const [categories, setCategories] = useState({});
   const [rawCategories, setRawCategories] = useState([]);
+  
+  // 🌟 新增：Supabase 匯率狀態
+  const [rates, setRates] = useState({ JPY: 0.052, CNY: 1.08 });
 
   const [selectedMember, setSelectedMember] = useState('');
   const [mainCat, setMainCat] = useState('');
@@ -51,6 +54,8 @@ export default function ExpenseTracker() {
         setMainCat(Object.keys(categoryMap)[0] || '');
         setSubCat(categoryMap[Object.keys(categoryMap)[0]]?.[0] || '');
 
+        // 🌟 載入初始數據時，順便向 Supabase 攞匯率
+        await fetchRates();
         await fetchExpenses();
       } catch (error) {
         console.error('❌ 讀取資料失敗:', error);
@@ -65,6 +70,9 @@ export default function ExpenseTracker() {
 
   useEffect(() => {
     fetchExpenses();
+    if (view === 'settings' || view === 'main') {
+      fetchRates();
+    }
   }, [view]);
 
   useEffect(() => {
@@ -72,6 +80,33 @@ export default function ExpenseTracker() {
       setSubCat(categories[mainCat][0] || '');
     }
   }, [mainCat, categories]);
+
+  // 🌟 新增：從 Supabase 讀取最新匯率
+  const fetchRates = async () => {
+    const { data } = await supabase.from('system_settings').select('*');
+    if (data) {
+      const jpyRow = data.find(r => r.key === 'rates_jpy');
+      const cnyRow = data.find(r => r.key === 'rates_cny');
+      setRates({
+        JPY: jpyRow ? Number(jpyRow.value) : 0.052,
+        CNY: cnyRow ? Number(cnyRow.value) : 1.08
+      });
+    }
+  };
+
+  // 🌟 新增：更新 Supabase 匯率
+  const handleUpdateRate = async (currency, value) => {
+    const key = `rates_${currency.toLowerCase()}`;
+    const { error } = await supabase
+      .from('system_settings')
+      .upsert({ key, value: value.toString(), updated_at: new Date().toISOString() });
+    
+    if (!error) {
+      setRates(prev => ({ ...prev, [currency]: Number(value) }));
+    } else {
+      console.error('❌ 匯率儲存失敗:', error);
+    }
+  };
 
   const fetchExpenses = async () => {
     const { data } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
@@ -112,10 +147,23 @@ export default function ExpenseTracker() {
     });
   };
 
-  const handleAddExpense = async (event) => {
-    event.preventDefault();
-    const amountValue = Number(expenseForm.amount);
+  const handleAddExpense = async (event, currencyMeta = { currency: 'HKD', exchangeRate: 1 }) => {
+    if (event && event.preventDefault) event.preventDefault();
+    
+    let amountValue = Number(expenseForm.amount);
     if (!amountValue || !selectedMember || !mainCat || !subCat) return;
+
+    let currencyLabel = currencyMeta.currency || 'HKD';
+    let rate = currencyMeta.exchangeRate || 1;
+    let finalNote = expenseForm.note;
+
+    if (currencyLabel !== 'HKD') {
+      const originalAmount = amountValue;
+      amountValue = originalAmount * rate;
+      
+      const originalStamp = ` (${currencyLabel} ${originalAmount} @ ${rate})`;
+      finalNote = finalNote ? `${finalNote}${originalStamp}` : originalStamp.trim();
+    }
 
     let timestamp = new Date();
     if (expenseForm.expenseDate) {
@@ -130,7 +178,7 @@ export default function ExpenseTracker() {
         amount: amountValue,
         main_category: mainCat,
         sub_category: subCat,
-        note: expenseForm.note,
+        note: finalNote,
         created_at: timestamp.toISOString(),
       },
     ]);
@@ -138,7 +186,6 @@ export default function ExpenseTracker() {
     if (!error) {
       setExpenseForm(initialExpenseForm);
       await fetchExpenses();
-      // 🌟 修正點：拿走綠色剔號，改用耀藍色星號
       window.alert('🔹 記帳成功！');
     }
   };
@@ -253,6 +300,7 @@ export default function ExpenseTracker() {
           stats={stats}
           records={records}
           formatCurrency={formatCurrency}
+          rates={rates} // 🌟 傳入 Supabase 匯率
         />
       )}
 
@@ -276,6 +324,8 @@ export default function ExpenseTracker() {
           onAddCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
           onUpdateCategory={handleUpdateCategory}
+          rates={rates} // 🌟 傳入 Supabase 匯率
+          onUpdateRate={handleUpdateRate} // 🌟 傳入更新 Function
         />
       )}
     </S.AppShell>

@@ -229,7 +229,7 @@ export default function DetailsTab({
                     <S.ListItem key={record.id} onClick={() => setSelectedRecord({ record, member })}>
                       <S.ItemLeft style={{ gap: '8px' }}>
                         <S.MemberDot style={{ backgroundColor: member.color, width: '8px', height: '8px' }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, 'alignItems': 'flex-start' }}>
                           <S.CatText style={{ fontSize: '12px', color: '#e5e7eb' }}>
                             {record.main_category} · {record.sub_category}
                           </S.CatText>

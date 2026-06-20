@@ -8,9 +8,11 @@ export default function SettingsTab({
   onAddCategory,
   onDeleteCategory,
   onUpdateCategory, 
+  rates,        // 🌟 由父層傳入嘅 Supabase 狀態
+  onUpdateRate, // 🌟 觸發 Supabase 更新嘅 Function
 }) {
   const [sortBy, setSortBy] = useState('date-desc');
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState(null); // 💊 null 代表全部
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState(null); 
   const [editingId, setEditingId] = useState(null); 
   const [editForm, setEditForm] = useState({ main_category: '', sub_category: '' });
 
@@ -50,10 +52,10 @@ export default function SettingsTab({
     return groups;
   }, [sortedCategories]);
 
-  // 🧠 4. 基於 Capsule 篩選顯示，如果為 null (Unticked) 則回傳完整清單
+  // 🧠 4. 基於 Capsule 篩選顯示
   const visibleGroupKeys = useMemo(() => {
     const keys = Object.keys(categoryGroups);
-    if (!activeCategoryFilter) return keys; // 💡 Untick all = select all
+    if (!activeCategoryFilter) return keys; 
     return keys.filter(mainCat => mainCat === activeCategoryFilter);
   }, [categoryGroups, activeCategoryFilter]);
 
@@ -77,12 +79,41 @@ export default function SettingsTab({
   return (
     <S.SettingsContainer style={{ gap: '16px' }}>
       
+      {/* 🌟 雲端同步：Supabase 匯率設定區 */}
+      <S.SettingsSection style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
+        <S.SectionTitle style={{ fontSize: '14px', color: '#8a94aa', fontWeight: '500', marginBottom: '12px' }}>
+          🌐 Supabase 雲端匯率同步 (1 外幣 = ? HKD)
+        </S.SectionTitle>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '100%' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '11px', color: '#ff8aa5' }}>日圓 JPY</span>
+            <S.TextInput 
+              type="number" 
+              step="any" 
+              value={rates?.JPY || ''} 
+              onChange={(e) => onUpdateRate('JPY', e.target.value)} 
+              style={{ height: '34px', padding: '8px 12px', fontSize: '12px', borderRadius: '8px', fontFamily: 'monospace' }}
+            />
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '11px', color: '#3b82f6' }}>人民幣 CNY</span>
+            <S.TextInput 
+              type="number" 
+              step="any" 
+              value={rates?.CNY || ''} 
+              onChange={(e) => onUpdateRate('CNY', e.target.value)} 
+              style={{ height: '34px', padding: '8px 12px', fontSize: '12px', borderRadius: '8px', fontFamily: 'monospace' }}
+            />
+          </div>
+        </div>
+      </S.SettingsSection>
+      
       <S.SettingsSection>
         <S.SectionTitle style={{ fontSize: '14px', color: '#8a94aa', fontWeight: '500', marginBottom: '12px' }}>
           自定義分類管理
         </S.SectionTitle>
 
-        {/* 💊 📱 滑動藥丸列：拿走「全部顯示」Choice，直接按 Capsule 切換/反選 */}
+        {/* 滑動藥丸列 */}
         <div 
           style={{
             display: 'flex',
